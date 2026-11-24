@@ -1,0 +1,40 @@
+name: godot-tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  headless:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: "4.3-stable"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot ${{ env.GODOT_VERSION }}
+        run: |
+          wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q "Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          mv "Godot_v${GODOT_VERSION}_linux.x86_64" godot
+          ./godot --version
+
+      - name: Import project (builds class cache)
+        run: ./godot --headless --path . --import 2>&1 | tee import.log || true
+
+      - name: Compile every script
+        run: |
+          ./godot --headless --path . -s res://tests/compile_all.gd 2>&1 | tee compile.log
+          ! grep -E "SCRIPT ERROR|Parse Error|COMPILE FAIL" compile.log
+
+      - name: Acceptance checks
+        run: |
+          ./godot --headless --path . -s res://tests/run_tests.gd 2>&1 | tee tests.log
+          grep -q " 0 failed" tests.log
+          ! grep -E "SCRIPT ERROR|Parse Error" tests.log
+
+      - name: Smoke run (boot, start run, scripted chase)
+        run: |
+          ./godot --headless --fixed-fps 60 --path . -s res://tests/smoke_run.gd 2>&1 | tee smoke.log
+          grep -q "SMOKE DONE" smoke.log
+          ! grep -E "SCRIPT ERROR|Parse Error" smoke.log

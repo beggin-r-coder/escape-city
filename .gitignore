@@ -1,0 +1,20 @@
+# Godot 4
+.godot/
+/android/
+*.translation
+export_credentials.cfg
+
+# Builds
+/builds/
+*.apk
+*.aab
+*.idsig
+
+# Signing secrets (keep outside source control)
+*.keystore
+*.jks
+keystore.properties
+
+# OS / editor
+.DS_Store
+*.tmp

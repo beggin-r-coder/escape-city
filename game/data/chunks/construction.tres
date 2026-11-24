@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ChunkDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/chunk_definition.gd" id="1_s"]
+
+[resource]
+script = ExtResource("1_s")
+id = &"construction"
+kind = 4
+weight = 0.7
+min_band = 1
+building_min_height = 4.0
+building_max_height = 26.0
+max_lots = 2
+hazard_slots = 3
+coin_line_chance = 0.45

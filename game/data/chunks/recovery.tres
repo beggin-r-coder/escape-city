@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ChunkDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/chunk_definition.gd" id="1_s"]
+
+[resource]
+script = ExtResource("1_s")
+id = &"recovery"
+kind = 1
+weight = 0.0
+building_min_height = 5.0
+building_max_height = 8.0
+max_lots = 1
+coin_line_chance = 0.0
+is_recovery = true

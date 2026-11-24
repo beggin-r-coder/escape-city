@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HandlingConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/data/handling_config.gd" id="1_s"]
+
+[resource]
+script = ExtResource("1_s")
+max_speed = 22.0
+acceleration = 7.0
+brake_deceleration = 16.0
+drift_brake_deceleration = 5.0
+steer_rate_low_speed = 2.5
+steer_rate_high_speed = 1.7
+drift_yaw_multiplier = 1.45
+max_lateral_slip = 6.0
+capture_speed_threshold = 4.0
+capture_radius = 9.0
+capture_seconds = 3.0
