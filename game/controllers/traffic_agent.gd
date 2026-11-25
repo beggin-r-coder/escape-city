@@ -24,8 +24,8 @@ var _stun: float = 0.0
 var _wait: float = 0.0
 var _sense_timer: float = 0.0
 var _blocked: bool = false
-var _model: Node3D
-var _brake_mat: StandardMaterial3D
+var visual: CarVisual
+var _last_speed: float = 0.0
 var _skip_velocity: bool = false
 
 
@@ -45,13 +45,14 @@ func setup(traffic_manager: TrafficManager, lane_graph: LaneGraph) -> void:
 	deactivate()
 
 
-func set_look(shape: int, color: Color) -> void:
-	if _model != null:
-		_model.queue_free()
-	shape_kind = shape
-	_model = ArtKit.car(shape, color, color.lightened(0.35))
-	add_child(_model)
-	_brake_mat = _model.get_meta(&"brake_mat") as StandardMaterial3D
+func set_look(model_name: String) -> void:
+	if visual == null:
+		visual = CarVisual.new()
+		visual.name = "Visual"
+		add_child(visual)
+	if visual.get_meta(&"model", "") != model_name:
+		visual.build(model_name)
+		visual.set_meta(&"model", model_name)
 
 
 func activate(a: Vector2i, b: Vector2i, start_s: float, cruise_speed: float) -> void:
@@ -68,6 +69,9 @@ func activate(a: Vector2i, b: Vector2i, start_s: float, cruise_speed: float) -> 
 	collision_layer = 8
 	process_mode = Node.PROCESS_MODE_INHERIT
 	_apply_pose(_lane_pos(_s), _lane_dir())
+	if visual != null:
+		visual.visible = true
+		visual.teleport(global_transform)
 
 
 func deactivate() -> void:
@@ -78,6 +82,8 @@ func deactivate() -> void:
 	collision_layer = 0
 	current_velocity = Vector3.ZERO
 	global_position = Vector3(0, -50, 0)
+	if visual != null:
+		visual.visible = false
 
 
 func on_bumped() -> void:
@@ -167,8 +173,12 @@ func _physics_process(delta: float) -> void:
 		_skip_velocity = false
 	else:
 		current_velocity = (global_position - prev) / maxf(delta, 0.0001)
-	if _brake_mat != null:
-		_brake_mat.emission_energy_multiplier = 3.0 if speed < cruise * 0.5 else 0.6
+	if visual != null:
+		visual.speed = speed
+		visual.steer = 0.0 if _mode != Mode.TURN else (0.6 if _turn_sign() > 0.0 else -0.6)
+		visual.accel = (speed - _last_speed) / maxf(delta, 0.0001)
+		visual.capture(global_transform)
+	_last_speed = speed
 
 
 func _apply_pose(pos: Vector3, dir: Vector3) -> void:
@@ -180,6 +190,16 @@ func waiting_node() -> Vector2i:
 	return _b
 
 
+## +1 for a right turn, -1 for a left turn, 0 straight (for steering the front wheels).
+func _turn_sign() -> float:
+	var d1 := _lane_dir()
+	var d2 := (graph.node_world(_c) - graph.node_world(_b)).normalized()
+	var cross := d1.x * d2.z - d1.z * d2.x
+	return signf(cross)
+
+
 func apply_origin_shift(_offset: Vector3) -> void:
 	# Pose is recomputed from logical graph nodes every step; skip one velocity sample.
 	_skip_velocity = true
+	if visual != null:
+		visual.shift(_offset)

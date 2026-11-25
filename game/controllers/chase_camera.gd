@@ -6,15 +6,16 @@ extends Camera3D
 
 var target: PlayerCar
 var graph: LaneGraph
-var distance: float = 12.0
-var height: float = 25.0
-var look_ahead: float = 7.0
-var base_fov: float = 55.0
-var wide_fov: float = 64.0
+var distance: float = 9.0
+var height: float = 19.0
+var look_ahead: float = 13.0
+var base_fov: float = 52.0  # horizontal (KEEP_WIDTH): constant road width in portrait
+var wide_fov: float = 60.0
 var reduced_motion: bool = false
 var orbit: bool = false
 
 var _cam_heading: float = 0.0
+var _look: Vector3 = Vector3.ZERO
 var _shake: float = 0.0
 var _orbit_angle: float = 0.0
 
@@ -22,9 +23,10 @@ var _orbit_angle: float = 0.0
 func setup(player_car: PlayerCar, lane_graph: LaneGraph) -> void:
 	target = player_car
 	graph = lane_graph
+	keep_aspect = Camera3D.KEEP_WIDTH
 	fov = base_fov
 	near = 0.5
-	far = 240.0
+	far = 260.0
 	add_to_group(&"origin_shift")
 
 
@@ -40,38 +42,53 @@ func add_shake(amount: float) -> void:
 		_shake = clampf(_shake + amount, 0.0, 1.0)
 
 
-func _physics_process(delta: float) -> void:
+## Per rendered frame, following the interpolated car: smooth at any refresh rate.
+func _process(delta: float) -> void:
 	_update(delta, false)
+
+
+static func _damp(rate: float, delta: float) -> float:
+	return 1.0 - exp(-rate * delta)
+
+
+func _target_xf() -> Transform3D:
+	if target.visual != null and target.visual.is_inside_tree():
+		return target.visual.interpolated()
+	return target.global_transform
 
 
 func _update(delta: float, instant: bool) -> void:
 	if target == null:
 		return
-	var tpos := target.global_position
+	var txf := _target_xf()
+	var tpos := txf.origin
 	if orbit:
 		_orbit_angle += delta * 0.15
-		var offset := Vector3(sin(_orbit_angle), 0, cos(_orbit_angle)) * 42.0 + Vector3(0, 46.0, 0)
+		var offset := Vector3(sin(_orbit_angle), 0, cos(_orbit_angle)) * 40.0 + Vector3(0, 52.0, 0)
 		global_position = tpos + offset
 		look_at(tpos, Vector3.UP)
 		fov = base_fov
 		return
-	var k := 1.0 if instant else clampf(delta * 3.0, 0.0, 1.0)
-	_cam_heading = lerp_angle(_cam_heading, target.heading, k)
+	var car_heading := LaneGraph.heading_of(-txf.basis.z)
+	_cam_heading = lerp_angle(_cam_heading, car_heading, 1.0 if instant else _damp(5.0, delta))
 	var fwd := LaneGraph.forward_of(_cam_heading)
+	var right := Vector3(-fwd.z, 0.0, fwd.x)
 	var speed_t := clampf(target.speed / 22.0, 0.0, 1.0)
 	var near_junction := graph.nearest_intersection_distance(tpos) < graph.half_road() + 10.0
-	var dist := distance + speed_t * 2.0
-	var h := height + speed_t * 2.0 + (2.5 if near_junction else 0.0)
+	var dist := distance + speed_t * 3.0
+	var h := height + speed_t * 3.0 + (2.0 if near_junction else 0.0)
 	var desired := tpos - fwd * dist + Vector3.UP * h
-	var pk := 1.0 if instant else clampf(delta * 6.0, 0.0, 1.0)
-	global_position = global_position.lerp(desired, pk)
-	var target_fov := lerpf(base_fov, wide_fov, maxf(speed_t * 0.6, 1.0 if near_junction else 0.0))
-	fov = lerpf(fov, target_fov, 1.0 if instant else clampf(delta * 2.0, 0.0, 1.0))
+	global_position = desired if instant else global_position.lerp(desired, _damp(7.0, delta))
+	# Look ahead of the car, leaning slightly into a drift.
+	var look_target := tpos + fwd * (look_ahead + speed_t * 4.0) - right * target.lateral * 0.6
+	_look = look_target if instant else _look.lerp(look_target, _damp(9.0, delta))
+	var target_fov := lerpf(base_fov, wide_fov, maxf(speed_t * 0.5, 0.6 if near_junction else 0.0))
+	fov = target_fov if instant else lerpf(fov, target_fov, _damp(2.0, delta))
 	if _shake > 0.0:
 		_shake = maxf(0.0, _shake - delta * 2.5)
-		var s := _shake * _shake * 0.8
-		global_position += Vector3(randf_range(-s, s), randf_range(-s, s), randf_range(-s, s))
-	look_at(tpos + fwd * look_ahead, Vector3.UP)
+		var sk := _shake * _shake * 0.8
+		global_position += Vector3(randf_range(-sk, sk), randf_range(-sk, sk), randf_range(-sk, sk))
+	look_at(_look, Vector3.UP)
 
 
 ## Screen direction (x right, y down) from the player toward an off-screen point, measured
@@ -94,3 +111,4 @@ func offscreen_direction(world_pos: Vector3) -> Vector2:
 
 func apply_origin_shift(offset: Vector3) -> void:
 	global_position += offset
+	_look += offset

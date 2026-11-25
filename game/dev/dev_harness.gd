@@ -376,6 +376,9 @@ func _demo() -> void:
 				for cop in run.director.police():
 					modes.append("%s@%dm" % [PoliceAgent.Mode.keys()[(cop as PoliceAgent).mode], int((cop as PoliceAgent).distance_to_player())])
 				var pp := run.player.global_position
+				var cam := run.camera
+				var cam_fwd := -cam.global_transform.basis.z
+				log_line("  camdiff=%.2f carh=%.2f camh=%.2f" % [wrapf(LaneGraph.heading_of(Vector3(cam_fwd.x, 0, cam_fwd.z).normalized()) - run.player.heading, -PI, PI), run.player.heading, LaneGraph.heading_of(Vector3(cam_fwd.x, 0, cam_fwd.z).normalized())])
 				log_line("  cap=%.2f spd=%.1f hp=%d pos=(%d,%d) node=%s heading=%.2f brake=%s steer=%.2f cops=%s" % [run.capture.progress, run.player.speed, int(run.player.health), pp.x, pp.z, run.graph.world_to_node(pp), run.player.heading, run.router.override_brake, run.router.override_steer, modes])
 			var d := run.director.nearest_police_distance()
 			samples.append(d if d != INF else 999.0)
@@ -383,5 +386,6 @@ func _demo() -> void:
 		for d in samples:
 			if d < 60.0:
 				close += 1
+		log_line("streaming activations=%d max_cell_ms=%.2f" % [run.world.activations, run.world.max_activate_usec / 1000.0])
 		log_line("probe samples=%d within60m=%d%%" % [samples.size(), int(100.0 * close / maxf(1.0, samples.size()))])
 		finish()

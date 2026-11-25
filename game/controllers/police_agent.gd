@@ -38,7 +38,9 @@ var _flash_t: float = 0.0
 var _recoil: float = 0.0  # after a ram, drop back so the player gets a window to turn away
 const RAM_RECOIL_SECONDS := 2.5
 const RAM_RECOIL_SPEED := 0.85
-var _model: Node3D
+var visual: CarVisual
+var _yaw_rate: float = 0.0
+var _last_speed: float = 0.0
 var _red: StandardMaterial3D
 var _blue: StandardMaterial3D
 
@@ -59,16 +61,28 @@ func setup(lane_graph: LaneGraph, player_car: PlayerCar) -> void:
 	deactivate()
 
 
-func set_skin(body: Color, accent: Color) -> void:
-	if _model != null and _model.get_meta(&"skin", Color.BLACK) == body:
-		return
-	if _model != null:
-		_model.queue_free()
-	_model = ArtKit.car(0, body, accent, true)
-	_model.set_meta(&"skin", body)
-	add_child(_model)
-	_red = _model.get_meta(&"bar_red") as StandardMaterial3D
-	_blue = _model.get_meta(&"bar_blue") as StandardMaterial3D
+func set_skin(model_name: String) -> void:
+	if visual == null:
+		visual = CarVisual.new()
+		visual.name = "Visual"
+		add_child(visual)
+	if visual.model() == null or visual.get_meta(&"model", "") != model_name:
+		visual.build(model_name)
+		visual.set_meta(&"model", model_name)
+		_add_light_flash()
+
+
+## Flashing overlay on the model's built-in light bar so it reads from the high camera.
+func _add_light_flash() -> void:
+	_red = StandardMaterial3D.new()
+	_red.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_blue = StandardMaterial3D.new()
+	_blue.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var holder := Node3D.new()
+	visual.add_child(holder)
+	var y := 1.12 * visual.model_scale
+	ArtKit.box(holder, Vector3(0.42, 0.14, 0.3), Vector3(-0.3, y, 0.05), _red)
+	ArtKit.box(holder, Vector3(0.42, 0.14, 0.3), Vector3(0.3, y, 0.05), _blue)
 
 
 func activate(pos: Vector3, new_heading: float, tuning: Dictionary) -> void:
@@ -89,6 +103,10 @@ func activate(pos: Vector3, new_heading: float, tuning: Dictionary) -> void:
 	active = true
 	frozen = false
 	visible = true
+	_yaw_rate = 0.0
+	if visual != null:
+		visual.visible = true
+		visual.teleport(global_transform)
 	collision_layer = 4
 	set_physics_process(true)
 
@@ -107,6 +125,8 @@ func deactivate() -> void:
 	velocity = Vector3.ZERO
 	global_position = Vector3(0, -60, 0)
 	set_physics_process(false)
+	if visual != null:
+		visual.visible = false
 
 
 func disengage() -> void:
@@ -237,8 +257,10 @@ func _drive(delta: float) -> void:
 	if to_t.length() > 0.5:
 		var desired_heading := LaneGraph.heading_of(to_t.normalized())
 		var diff := wrapf(desired_heading - heading, -PI, PI)
-		var max_turn := turn_rate * delta * clampf(absf(speed) / 5.0, 0.3, 1.0)
-		heading = wrapf(heading + clampf(diff, -max_turn, max_turn), -PI, PI)
+		var max_rate := turn_rate * clampf(absf(speed) / 5.0, 0.3, 1.0)
+		var want := clampf(diff * 4.0, -max_rate, max_rate)
+		_yaw_rate = move_toward(_yaw_rate, want, 9.0 * delta)
+		heading = wrapf(heading + _yaw_rate * delta, -PI, PI)
 		if absf(diff) > 0.8:
 			desired_speed *= 0.55
 	var rate := accel if speed < desired_speed else 14.0
@@ -246,7 +268,7 @@ func _drive(delta: float) -> void:
 	_move(delta, speed)
 
 
-func _move(_delta: float, spd: float) -> void:
+func _move(delta: float, spd: float) -> void:
 	rotation = Vector3(0, heading, 0)
 	var planar := forward() * spd
 	velocity = Vector3(planar.x, -2.0, planar.z)
@@ -267,6 +289,12 @@ func _move(_delta: float, spd: float) -> void:
 			var n2 := col.get_normal()
 			if absf(forward().dot(n2)) > 0.7:
 				speed *= 0.5
+	if visual != null:
+		visual.speed = spd
+		visual.steer = clampf(-_yaw_rate / maxf(turn_rate, 0.1), -1.0, 1.0)
+		visual.accel = (spd - _last_speed) / maxf(delta, 0.0001)
+		visual.capture(global_transform)
+	_last_speed = spd
 
 
 func _flash(delta: float) -> void:
@@ -281,3 +309,5 @@ func _flash(delta: float) -> void:
 func apply_origin_shift(offset: Vector3) -> void:
 	global_position += offset
 	target_point += offset
+	if visual != null:
+		visual.shift(offset)

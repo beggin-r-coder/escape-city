@@ -9,8 +9,8 @@ extends RefCounted
 ## A failed validation returns a known-safe recovery plan instead.
 ## All coordinates are local XZ (Vector2) relative to the cell corner node.
 
-const LANE_HALF_SPAN := 5.2  # lanes occupy |offset| <= this from the road centre line
-const PARK_OFFSET := 6.5  # parked cars sit in the curb strip
+const LANE_HALF_SPAN := 4.6  # lanes occupy |offset| <= this from the road centre line
+const PARK_OFFSET := 5.8  # parked cars sit in the gutter, outside the lanes
 const SIDEWALK := 3.0
 
 var graph: LaneGraph

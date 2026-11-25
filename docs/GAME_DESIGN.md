@@ -19,7 +19,7 @@ or boxed in → bank rewards → equip a car look → retry.
   vehicle contacts apply scripted slowdown and damage.
 
 ## Session rules
-* Landscape. The first run teaches one action at a time (steer → brake → drift → escape goal).
+* Portrait (720×1280 design resolution, one-handed friendly). The first run teaches one action at a time (steer → brake → drift → escape goal).
 * The game pauses on focus loss, held touches are cleared on resume, and the UI consumes
   touches before gameplay does.
 * Game over freezes rewards, shows a clear failure reason, and offers Retry before optional

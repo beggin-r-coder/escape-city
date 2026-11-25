@@ -32,16 +32,17 @@ func start() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.anchor_left = 0.5
 	panel.anchor_right = 0.5
-	panel.offset_left = -380
-	panel.offset_right = 380
-	panel.offset_top = 250
-	panel.offset_bottom = 330
+	panel.offset_left = -320
+	panel.offset_right = 320
+	panel.offset_top = 300
+	panel.offset_bottom = 400
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.05, 0.07, 0.12, 0.75)
 	sb.set_corner_radius_all(18)
 	panel.add_theme_stylebox_override("panel", sb)
 	add_child(panel)
-	_label = UiKit.label(STEPS[0], 30)
+	_label = UiKit.label(STEPS[0], 28)
+	_label.custom_minimum_size = Vector2(600, 0)
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	panel.add_child(_label)
 	open_screen()

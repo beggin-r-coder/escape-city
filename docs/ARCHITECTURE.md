@@ -63,6 +63,19 @@ duplicate ad callback has no effect. `ScoreService` consumes gameplay events, an
   they hold the intersection slot. Slots expire after 4 s and long waits force a grant, so
   the system can't deadlock. Agents keep a following gap.
 
+## Rendering and smoothness
+
+* Vehicles simulate at the 60 Hz physics rate. Each has a `CarVisual` (`game/art/car_visual.gd`)
+  that interpolates between physics ticks every rendered frame, so motion stays smooth on
+  90/120 Hz screens. It also spins and steers the Kenney wheel nodes and adds body roll/pitch.
+* `ChaseCamera` runs per rendered frame on the interpolated transform, with frame-rate
+  independent exponential smoothing. It locks the horizontal FOV (`KEEP_WIDTH`) so the road
+  width stays constant in portrait.
+* World streaming activates at most one block per frame (about 2–4 ms per block on desktop),
+  which avoids hitches; `--probe` reports the worst block time.
+* Skid marks use one MultiMesh ring buffer (a single draw call). Crash debris uses Kenney
+  car-kit parts.
+
 ## Scene and folder contract
 
 `res://game/{scenes,controllers,generation,data,art,audio,ui}` hold this title.

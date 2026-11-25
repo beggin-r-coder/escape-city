@@ -5,11 +5,9 @@ extends Area3D
 
 signal smashed(prop: BreakableProp, by: Node3D)
 
-static var _cone_mesh: CylinderMesh
-
 var type: StringName = &"cone"
 var broken: bool = false
-var _visual: MeshInstance3D
+var _visual: Node3D
 var _vel: Vector3 = Vector3.ZERO
 var _spin: Vector3 = Vector3.ZERO
 var _t: float = 0.0
@@ -23,24 +21,14 @@ func setup(prop_type: StringName) -> void:
 	add_to_group(&"origin_shift")
 	var shape := CollisionShape3D.new()
 	var bs := BoxShape3D.new()
-	_visual = MeshInstance3D.new()
 	if type == &"cone":
-		if _cone_mesh == null:
-			_cone_mesh = CylinderMesh.new()
-			_cone_mesh.top_radius = 0.06
-			_cone_mesh.bottom_radius = 0.38
-			_cone_mesh.height = 0.95
-			_cone_mesh.radial_segments = 8
-			_cone_mesh.rings = 1
-		_visual.mesh = _cone_mesh
-		_visual.material_override = ArtKit.mat(ArtKit.CONE, 0.25)
-		_visual.position = Vector3(0, 0.475, 0)
+		_visual = ArtKit.kenney("cars/cone")
+		_visual.scale = Vector3.ONE * 1.7
 		bs.size = Vector3(0.9, 1.0, 0.9)
 	else:
-		_visual.mesh = ArtKit.box_mesh()
-		_visual.material_override = ArtKit.mat(ArtKit.CRATE, 0.15)
-		_visual.transform = Transform3D(Basis.from_scale(Vector3(1.1, 1.1, 1.1)), Vector3(0, 0.55, 0))
-		bs.size = Vector3(1.2, 1.2, 1.2)
+		_visual = ArtKit.kenney("cars/box")
+		_visual.scale = Vector3.ONE * 1.25
+		bs.size = Vector3(1.3, 1.2, 1.3)
 	shape.shape = bs
 	shape.position = Vector3(0, 0.5, 0)
 	add_child(shape)

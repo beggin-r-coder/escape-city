@@ -110,10 +110,10 @@ func _build_ui() -> void:
 	toast.anchor_right = 0.5
 	toast.anchor_top = 1.0
 	toast.anchor_bottom = 1.0
-	toast.offset_left = -500
-	toast.offset_right = 500
-	toast.offset_top = -90
-	toast.offset_bottom = -40
+	toast.offset_left = -330
+	toast.offset_right = 330
+	toast.offset_top = -300
+	toast.offset_bottom = -240
 	toast.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toast.visible = false
 	ui.add_child(toast)
@@ -226,6 +226,7 @@ func _menu_from_pause() -> void:
 
 func _on_crashed_ready(reason: String) -> void:
 	get_tree().paused = true
+	run_root.hud.banner.visible = false
 	var session := run_root.session
 	var ads := DashCore.ads
 	if DashCore.ad_policy.offers_enabled and session.can_offer_revive() and ads.is_rewarded_ready():

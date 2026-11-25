@@ -20,7 +20,11 @@ const BUILDINGS := [
 	Color("6f8299"), Color("c9925a"), Color("a35a44"), Color("b8c2c9"),
 ]
 
+const KENNEY_DIR := "res://game/art/kenney/"
+
 static var _materials: Dictionary = {}
+static var _scenes: Dictionary = {}
+static var _aabbs: Dictionary = {}
 static var _box: BoxMesh
 static var _cylinder: CylinderMesh
 static var _sphere: SphereMesh
@@ -41,6 +45,47 @@ static func mat(color: Color, emission: float = 0.0, unshaded: bool = false) -> 
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_materials[key] = m
 	return m
+
+
+## Instantiate a Kenney model, e.g. kenney("cars/police") or kenney("roads/road-straight").
+static func kenney(path: String) -> Node3D:
+	if not _scenes.has(path):
+		_scenes[path] = load(KENNEY_DIR + path + ".glb")
+	var scene := _scenes[path] as PackedScene
+	if scene == null:
+		push_error("Missing Kenney model %s" % path)
+		return Node3D.new()
+	return scene.instantiate() as Node3D
+
+
+## Combined mesh AABB of a Kenney model in its own (unscaled) space. Cached.
+static func kenney_aabb(path: String) -> AABB:
+	if _aabbs.has(path):
+		return _aabbs[path]
+	var inst := kenney(path)
+	var box := AABB()
+	var first := true
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		var xf := _relative_xf(m, inst)
+		var b := xf * m.get_aabb()
+		if first:
+			box = b
+			first = false
+		else:
+			box = box.merge(b)
+	inst.free()
+	_aabbs[path] = box
+	return box
+
+
+static func _relative_xf(node: Node3D, root: Node3D) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	var n: Node = node
+	while n != null and n != root:
+		xf = (n as Node3D).transform * xf
+		n = n.get_parent()
+	return xf
 
 
 ## Fresh (non-cached) material, for things that animate (brake lights, light bars).

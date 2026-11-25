@@ -26,12 +26,13 @@ var invulnerable_timer: float = 0.0
 var distance_travelled: float = 0.0
 var steer_used: Vector2 = Vector2.ZERO  # tutorial tracking: x = left used, y = right used
 var drift_time: float = 0.0
-var model: Node3D
+var visual: CarVisual
+var yaw_rate: float = 0.0
 
 var _is_wrecked: bool = false
 var _contact_cooldowns: Dictionary = {}
 var _prev_pos: Vector3 = Vector3.ZERO
-var _brake_mat: StandardMaterial3D
+var _last_speed: float = 0.0
 
 
 func setup(handling: HandlingConfig, input_router: InputRouter) -> void:
@@ -49,12 +50,13 @@ func setup(handling: HandlingConfig, input_router: InputRouter) -> void:
 	add_child(shape)
 
 
-func set_look(shape: int, body: Color, accent: Color) -> void:
-	if model != null:
-		model.queue_free()
-	model = ArtKit.car(shape, body, accent)
-	add_child(model)
-	_brake_mat = model.get_meta(&"brake_mat") as StandardMaterial3D
+func set_look(model_name: String) -> void:
+	if visual == null:
+		visual = CarVisual.new()
+		visual.name = "Visual"
+		add_child(visual)
+	visual.build(model_name)
+	visual.teleport(global_transform)
 
 
 func reset_at(pos: Vector3, new_heading: float, initial_speed: float = 0.0) -> void:
@@ -73,8 +75,12 @@ func reset_at(pos: Vector3, new_heading: float, initial_speed: float = 0.0) -> v
 	distance_travelled = 0.0
 	steer_used = Vector2.ZERO
 	drift_time = 0.0
+	yaw_rate = 0.0
+	_last_speed = initial_speed
 	_contact_cooldowns.clear()
 	_prev_pos = pos
+	if visual != null:
+		visual.teleport(global_transform)
 
 
 func forward() -> Vector3:
@@ -137,7 +143,8 @@ func _physics_process(delta: float) -> void:
 	var yaw := -steer * rate_yaw * authority
 	if drifting:
 		yaw *= config.drift_yaw_multiplier
-	heading = wrapf(heading + yaw * delta, -PI, PI)
+	yaw_rate = move_toward(yaw_rate, yaw, config.yaw_response * delta)
+	heading = wrapf(heading + yaw_rate * delta, -PI, PI)
 
 	if drifting:
 		lateral = clampf(lateral - steer * config.drift_slip_accel * delta, -config.max_lateral_slip, config.max_lateral_slip)
@@ -161,10 +168,13 @@ func _physics_process(delta: float) -> void:
 	distance_travelled += moved.length()
 	_prev_pos = global_position
 
-	if model != null:
-		model.rotation.z = lerpf(model.rotation.z, clampf(lateral * 0.025, -0.12, 0.12), 8.0 * delta)
-	if _brake_mat != null:
-		_brake_mat.emission_energy_multiplier = 3.0 if braking else 0.6
+	if visual != null:
+		visual.speed = speed
+		visual.steer = steer
+		visual.lateral = lateral
+		visual.accel = (speed - _last_speed) / maxf(delta, 0.0001)
+		visual.capture(global_transform)
+	_last_speed = speed
 
 
 func _handle_collisions(pre_velocity: Vector3) -> void:
@@ -203,6 +213,7 @@ func _wall_contact(other: Object, n: Vector3, pre_velocity: Vector3) -> void:
 	if tangent.length() > 0.5:
 		heading = lerp_angle(heading, LaneGraph.heading_of(tangent.normalized()), 0.5)
 	lateral *= 0.3
+	yaw_rate *= 0.5
 	var key := other.get_instance_id() if other != null else 0
 	if impact_speed > config.wall_damage_min_speed and not _contact_cooldowns.has(key):
 		_contact_cooldowns[key] = config.contact_cooldown
@@ -250,10 +261,15 @@ func restore_for_revive(pos: Vector3, new_heading: float, health_fraction: float
 	health = config.max_health * health_fraction
 	_is_wrecked = false
 	invulnerable_timer = protect_seconds
+	yaw_rate = 0.0
 	_contact_cooldowns.clear()
 	_prev_pos = pos
+	if visual != null:
+		visual.teleport(global_transform)
 
 
 func apply_origin_shift(offset: Vector3) -> void:
 	global_position += offset
 	_prev_pos += offset
+	if visual != null:
+		visual.shift(offset)

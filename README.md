@@ -2,7 +2,7 @@
 
 **Endless police pursuit. How long can you outrun the police?**
 
-An arcade car chase through a city built from reusable, certified road blocks. Traffic,
+An arcade car chase, played in **portrait**, through a city built from reusable, certified road blocks. Traffic,
 police pressure that ramps up but stays capped, and breakable street props make for
 dramatic escapes. Built for Android with **Godot 4.3 (GDScript, GL Compatibility renderer)**,
 following the DashPanda *Escape City Development Guide v1.0*.
@@ -12,10 +12,11 @@ following the DashPanda *Escape City Development Guide v1.0*.
 > screenshots (see [Test harness](#test-harness)). It has not been run on a physical
 > Android device yet; see [What still needs a human](#what-still-needs-a-human).
 
-| Menu | Chase | Results |
-|---|---|---|
-| ![menu](docs/screenshots/menu.png) | ![chase](docs/screenshots/chase.png) | ![results](docs/screenshots/results.png) |
-| ![tutorial](docs/screenshots/tutorial.png) | ![heat](docs/screenshots/run_heat.png) | ![garage](docs/screenshots/garage.png) |
+| Menu | Run | Chase | Results | Garage |
+|---|---|---|---|---|
+| ![menu](docs/screenshots/menu.png) | ![run](docs/screenshots/run.png) | ![chase](docs/screenshots/chase.png) | ![results](docs/screenshots/results.png) | ![garage](docs/screenshots/garage.png) |
+
+Art: [Kenney](https://www.kenney.nl) Car Kit, City Kit (Commercial) and City Kit (Roads), CC0.
 
 ## Run it
 
@@ -66,19 +67,25 @@ godot --headless --fixed-fps 60 --path . -- --fresh --autotest
 Real rendering on a virtual screen (Xvfb + Mesa, Compatibility renderer):
 
 ```bash
-xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --rendering-driver opengl3 --resolution 1280x720 -- --fresh --seed=42 --screen=run --god --wait=12 --shot=/tmp/run.png
+xvfb-run -a -s "-screen 0 720x1280x24" godot --path . --rendering-driver opengl3 --resolution 720x1280 -- --fresh --seed=42 --screen=run --god --wait=12 --shot=/tmp/run.png
 ```
 
 Video with audio (Movie Maker):
 
 ```bash
-xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --rendering-driver opengl3 --resolution 1280x720 --write-movie /tmp/clip.avi --fixed-fps 30 --quit-after 660 -- --fresh --seed=11 --heat=3 --god --demo
+xvfb-run -a -s "-screen 0 720x1280x24" godot --path . --rendering-driver opengl3 --resolution 720x1280 --write-movie /tmp/clip.avi --fixed-fps 30 --quit-after 780 -- --fresh --seed=4 --heat=3 --god --demo
 ```
 
 Balance probe (how close is the pursuit, does the run end, and how):
 
 ```bash
 godot --headless --fixed-fps 60 --path . -- --fresh --demo --probe=120 --seed=3 --heat=5 --ad=no_fill
+```
+
+Asset gallery (check orientation/scale of Kenney models; red marker = +X, blue = −Z):
+
+```bash
+xvfb-run -a godot --path . --rendering-driver opengl3 -s res://tests/asset_gallery.gd -- --set=roads --out=/tmp/roads.png
 ```
 
 The README screenshots in `docs/screenshots/` are regenerated this way before commits.

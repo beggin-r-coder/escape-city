@@ -86,8 +86,8 @@ func _try_spawn() -> bool:
 		var agent := pool.acquire(&"traffic") as TrafficAgent
 		if agent == null:
 			return false
-		var look := rng.randi_range(0, catalog.traffic_body.size() - 1)
-		agent.set_look(catalog.traffic_shapes[look % catalog.traffic_shapes.size()], catalog.traffic_body[look])
+		var look := rng.randi_range(0, catalog.traffic_models.size() - 1)
+		agent.set_look(catalog.traffic_models[look])
 		agent.activate(a, b, s, rng.randf_range(7.5, 10.5))
 		return true
 	return false

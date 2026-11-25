@@ -14,6 +14,8 @@ extends Resource
 @export var steer_rate_high_speed: float = 1.7
 @export var steer_full_speed: float = 6.0
 @export var steer_response: float = 9.0
+## How fast the yaw rate can change (rad/s^2). Lower = heavier, smoother turn-in.
+@export var yaw_response: float = 10.0
 
 @export_group("Drift")
 @export var drift_min_speed: float = 8.0

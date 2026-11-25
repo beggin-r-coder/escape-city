@@ -2,7 +2,7 @@ class_name UiKit
 extends RefCounted
 ## Reusable UI builders. Games supply colors through `make_theme`.
 
-const TOUCH_MIN := Vector2(96, 96)  # ~48dp at the 1280x720 design resolution on phones
+const TOUCH_MIN := Vector2(96, 96)  # ~48dp at the 720x1280 design resolution on phones
 
 
 static func make_theme(accent: Color, panel: Color, text: Color) -> Theme:
@@ -49,6 +49,13 @@ static func label(text: String, size: int = 28, color: Color = Color.WHITE) -> L
 	l.add_theme_constant_override("outline_size", maxi(2, size / 8))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+## Word-wrap a label to a fixed width (narrow portrait screens).
+static func wrapped(l: Label, width: float) -> Label:
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.custom_minimum_size = Vector2(width, 0)
 	return l
 
 

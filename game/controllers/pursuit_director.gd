@@ -302,7 +302,7 @@ func try_spawn() -> bool:
 		if cop == null:
 			return false
 		var skin := 0 if band < 3 else 1
-		cop.set_skin(catalog.police_body[skin], catalog.police_accent[skin])
+		cop.set_skin(catalog.police_models[skin % catalog.police_models.size()])
 		var path := graph.find_path(n, pnode, 200)
 		var dir := (player.global_position - pos).normalized()
 		if path.size() > 1:

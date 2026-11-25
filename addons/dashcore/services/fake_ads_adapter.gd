@@ -84,7 +84,7 @@ func _show_overlay(title: String, rewarded: bool, placement: String, run_id: Str
 	close.custom_minimum_size = Vector2(420, 96)
 	close.pressed.connect(_on_close.bind(rewarded, placement, run_id, offer_id))
 	box.add_child(close)
-	box.position -= Vector2(210, 120)
+	box.position -= Vector2(210, 160)
 
 
 func _close_overlay() -> void:

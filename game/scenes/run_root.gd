@@ -28,6 +28,8 @@ var router: InputRouter
 var hud: Hud
 var audio: SynthAudio
 var tutorial: TutorialOverlay
+var skid: SkidMarks
+var _impact_debris_cd: float = 0.0
 var handling: HandlingConfig
 var difficulty: DifficultyProfile
 var catalog: CosmeticCatalog
@@ -112,6 +114,11 @@ func _ready() -> void:
 	add_child(hud)
 	hud.build(router)
 
+	skid = SkidMarks.new()
+	skid.name = "SkidMarks"
+	add_child(skid)
+	skid.add_to_group(&"origin_shift")
+
 	audio = SynthAudio.new()
 	audio.name = "Audio"
 	add_child(audio)
@@ -145,20 +152,24 @@ func _build_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("3d6fc4")
-	sky_mat.sky_horizon_color = Color("bcd3ea")
+	sky_mat.sky_top_color = Color("3a6ec8")
+	sky_mat.sky_horizon_color = Color("a9c6e6")
 	sky_mat.ground_horizon_color = Color("bcd3ea")
 	sky_mat.ground_bottom_color = Color("5a6470")
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("7f95b8")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color("8fa3c4")
+	env.ambient_light_energy = 0.34
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_white = 4.0
+	env.tonemap_exposure = 0.92
+	env.tonemap_white = 6.0
 	env.fog_enabled = true
-	env.fog_light_color = Color("a9bfd6")
-	env.fog_density = 0.0028
+	env.fog_light_color = Color("8fa8c6")
+	env.fog_density = 0.0018
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.15
+	env.adjustment_saturation = 1.3
 	env.fog_sky_affect = 0.25
 	we.environment = env
 	add_child(we)
@@ -166,7 +177,8 @@ func _build_environment() -> void:
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-52, -38, 0)
 	sun.light_color = Color("ffe0b5")
-	sun.light_energy = 1.25
+	sun.light_energy = 0.92
+	sun.shadow_opacity = 0.75
 	sun.directional_shadow_max_distance = 90.0
 	add_child(sun)
 
@@ -182,7 +194,7 @@ func apply_settings() -> void:
 
 func apply_equipped_look() -> void:
 	var idx := catalog.player_index(DashCore.wallet.equipped())
-	player.set_look(catalog.player_shapes[idx], catalog.player_body[idx], catalog.player_accent[idx])
+	player.set_look(catalog.player_models[idx])
 
 
 # ---------------------------------------------------------------- run lifecycle
@@ -203,6 +215,8 @@ func _reset_world_state(seed_value: int) -> void:
 	score.reset()
 	_crash_timer = -1.0
 	_origin_shifts = 0
+	if skid != null:
+		skid.clear_marks()
 	var pose := _spawn_pose()
 	var pos: Vector3 = pose[0]
 	player.reset_at(pos, float(pose[1]), 0.0)
@@ -292,6 +306,7 @@ func _on_crash(reason: String) -> void:
 	audio.play("crash")
 	camera.add_shake(0.8)
 	DashCore.haptic(120)
+	DebrisPiece.burst(self, player.global_position, player.velocity, 5)
 	hud.show_banner(ReviveOffer.reason_title(reason), CRASH_BEAT_SECONDS)
 
 
@@ -374,6 +389,8 @@ func double_coins() -> int:
 # ---------------------------------------------------------------- per-frame
 
 func _physics_process(delta: float) -> void:
+	_impact_debris_cd -= delta
+	skid.track(player.global_transform, player.drifting or (player.braking and player.speed > 9.0))
 	match session.state:
 		RunSession.State.RUNNING:
 			_tick_running(delta)
@@ -477,6 +494,9 @@ func _maybe_shift_origin() -> void:
 
 func _on_player_impact(strength: float) -> void:
 	camera.add_shake(clampf(strength / 20.0, 0.1, 0.6))
+	if strength > 9.0 and _impact_debris_cd <= 0.0:
+		_impact_debris_cd = 1.0
+		DebrisPiece.burst(self, player.global_position, player.velocity, 2)
 	if strength > 4.0:
 		audio.play("crash")
 		DashCore.haptic(40)

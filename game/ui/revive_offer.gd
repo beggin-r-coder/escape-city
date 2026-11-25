@@ -18,7 +18,7 @@ func open_with(reason: String) -> void:
 	UiKit.dim_background(self, 0.6)
 	var col := UiKit.centered_column(self, 16)
 	col.add_child(UiKit.label(reason_title(reason), 72, Color("ff6b5a")))
-	col.add_child(UiKit.label(reason_hint(reason), 26, Color(0.9, 0.9, 0.95)))
+	col.add_child(UiKit.wrapped(UiKit.label(reason_hint(reason), 26, Color(0.9, 0.9, 0.95)), 600))
 	col.add_child(UiKit.button("REVIVE  (watch ad)", _on_revive, Vector2(460, 104)))
 	col.add_child(UiKit.secondary(UiKit.button("No thanks", declined.emit, Vector2(300, 96))))
 	_timer_label = UiKit.label("", 24, Color(1, 1, 1, 0.6))
@@ -48,9 +48,9 @@ static func reason_title(reason: String) -> String:
 static func reason_hint(reason: String) -> String:
 	match reason:
 		"busted":
-			return "You slowed down next to the police for 3 seconds."
+			return "You stayed slow next to the police for 3 seconds."
 		"wrecked":
-			return "Your car took too much damage from walls and rams."
+			return "Too much damage from walls and police rams."
 	return ""
 
 

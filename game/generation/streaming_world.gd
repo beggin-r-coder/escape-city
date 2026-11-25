@@ -13,12 +13,16 @@ var planner: ChunkPlanner
 var pool: ChunkPool
 var camera: Camera3D
 var radius: int = 2
-var max_activations_per_frame: int = 2
+var max_activations_per_frame: int = 1  # ~2.4 ms per block on desktop; phones are slower
 var band: int = 0
 var hazard_density: float = 0.3
 var safe_center: Vector3 = Vector3.ZERO
 var safe_radius: float = 0.0
 var active: Dictionary = {}  # Vector2i -> {"node", "props", "coins", "plan"}
+## Streaming cost (microseconds) for frame-hitch monitoring.
+var last_activate_usec: int = 0
+var max_activate_usec: int = 0
+var activations: int = 0
 
 var _ground: MeshInstance3D
 var _floor: StaticBody3D
@@ -151,6 +155,15 @@ func _follow_ground(center: Vector3) -> void:
 
 
 func _activate(cell: Vector2i, initial: bool) -> void:
+	var t0 := Time.get_ticks_usec()
+	_activate_inner(cell, initial)
+	last_activate_usec = Time.get_ticks_usec() - t0
+	activations += 1
+	if not initial:
+		max_activate_usec = maxi(max_activate_usec, last_activate_usec)
+
+
+func _activate_inner(cell: Vector2i, initial: bool) -> void:
 	var corner := graph.node_world(cell)
 	var cell_center := corner + Vector3(graph.cell_size * 0.5, 0, graph.cell_size * 0.5)
 	var in_safe_zone := safe_radius > 0.0 and cell_center.distance_to(safe_center) < safe_radius
