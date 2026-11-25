@@ -52,6 +52,7 @@ func set_look(model_name: String) -> void:
 		add_child(visual)
 	if visual.get_meta(&"model", "") != model_name:
 		visual.build(model_name)
+		visual.add_lights(false)
 		visual.set_meta(&"model", model_name)
 
 

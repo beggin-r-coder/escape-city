@@ -35,6 +35,10 @@ var difficulty: DifficultyProfile
 var catalog: CosmeticCatalog
 var env: Environment
 var sun: DirectionalLight3D
+var sky_mat: ProceduralSkyMaterial
+var day_night: DayNight
+## Dev harness override for time of day ("" = use the setting).
+var forced_time: String = ""
 
 ## Dev harness hooks (see game/dev/dev_harness.gd).
 var forced_seed: int = -1
@@ -119,6 +123,11 @@ func _ready() -> void:
 	add_child(skid)
 	skid.add_to_group(&"origin_shift")
 
+	day_night = DayNight.new()
+	day_night.name = "DayNight"
+	add_child(day_night)
+	day_night.setup(env, sun, sky_mat, world, player)
+
 	audio = SynthAudio.new()
 	audio.name = "Audio"
 	add_child(audio)
@@ -151,7 +160,7 @@ func _build_environment() -> void:
 	env = Environment.new()
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat = ProceduralSkyMaterial.new()
 	sky_mat.sky_top_color = Color("3a6ec8")
 	sky_mat.sky_horizon_color = Color("a9c6e6")
 	sky_mat.ground_horizon_color = Color("bcd3ea")
@@ -190,6 +199,9 @@ func apply_settings() -> void:
 	hud.set_layout(router.layout)
 	camera.reduced_motion = bool(store.get_setting("reduced_motion", false))
 	QualityPresets.apply(str(store.get_setting("quality", "low")), get_viewport(), sun, env)
+	var tod := forced_time if not forced_time.is_empty() else str(store.get_setting("time_of_day", "cycle"))
+	if day_night != null and day_night.mode != tod:
+		day_night.set_mode(tod)
 
 
 func apply_equipped_look() -> void:
@@ -256,6 +268,7 @@ func start_run(tutorial_mode: bool) -> bool:
 		director.heat_bonus = difficulty.band_start_times[b]
 	camera.orbit = false
 	camera.snap()
+	day_night.restart()
 	audio.muted = false
 	hud.set_gameplay_visible(true)
 	hud.update_threats(0.0, 0.0)
@@ -449,6 +462,7 @@ func _update_hud() -> void:
 	hud.update_stats(score.score(), score.distance, score.coins_collected,
 		player.health / handling.max_health, director.band, director.pressure)
 	hud.update_threats(capture.ratio(), director.escape_progress())
+	hud.update_speed(player.speed)
 	var dirs: Array[Vector2] = []
 	var urg: Array[float] = []
 	for p in director.police():

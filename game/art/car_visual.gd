@@ -24,19 +24,22 @@ var _spin: float = 0.0
 var _steer_vis: float = 0.0
 var _roll: float = 0.0
 var _pitch: float = 0.0
+var model_name: String = ""
+var _lights_root: Node3D
 var _prev: Transform3D = Transform3D.IDENTITY
 var _curr: Transform3D = Transform3D.IDENTITY
 
 
-func build(model_name: String, scale_f: float = 1.55) -> void:
+func build(new_model: String, scale_f: float = 1.55) -> void:
 	top_level = true
 	model_scale = scale_f
+	model_name = new_model
 	if _model != null:
 		_model.queue_free()
 	_wheels_front.clear()
 	_wheels_back.clear()
 	_wheel_base.clear()
-	_model = ArtKit.kenney("cars/%s" % model_name)
+	_model = ArtKit.kenney("cars/%s" % new_model)
 	_model.rotation.y = PI  # Kenney cars face +Z; the game drives toward -Z
 	_model.scale = Vector3.ONE * scale_f
 	add_child(_model)
@@ -52,6 +55,50 @@ func build(model_name: String, scale_f: float = 1.55) -> void:
 	_body = _model.find_child("body", true, false) as Node3D
 	if _body != null:
 		_body_base = _body.transform
+
+
+const HEAD_COLOR := Color("fff1cf")
+const TAIL_COLOR := Color("ff2a1f")
+
+
+## Headlights + tail lights (glow at night) and a fake beam on the road. `real` adds two
+## SpotLights (player only: real lights are expensive on mobile).
+func add_lights(real: bool) -> void:
+	if _lights_root != null:
+		_lights_root.queue_free()
+	_lights_root = Node3D.new()
+	_lights_root.name = "Lights"
+	add_child(_lights_root)
+	var bb := ArtKit.kenney_aabb("cars/" + model_name)
+	var sc := model_scale
+	# Model faces +Z but is rotated 180 deg, so its front (+Z) is our -Z.
+	var front_z := -bb.end.z * sc
+	var rear_z := -bb.position.z * sc
+	var half_w := bb.size.x * 0.5 * sc
+	var y := bb.size.y * 0.34 * sc
+	var head_mat := ArtKit.night_glow(HEAD_COLOR, 3.5)
+	var tail_mat := ArtKit.night_glow(TAIL_COLOR, 2.6)
+	for sx in [-1.0, 1.0]:
+		var h := ArtKit.box(_lights_root, Vector3(0.4, 0.16, 0.08), Vector3(sx * half_w * 0.62, y, front_z - 0.02), head_mat)
+		h.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var t := ArtKit.box(_lights_root, Vector3(0.36, 0.14, 0.08), Vector3(sx * half_w * 0.66, y, rear_z + 0.02), tail_mat)
+		t.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ArtKit.light_pool(_lights_root, Vector3(0, 0.13, front_z - 8.0), Vector2(7.0, 15.0), HEAD_COLOR, 0.2)
+	ArtKit.light_pool(_lights_root, Vector3(0, 0.13, rear_z + 1.6), Vector2(3.5, 3.0), TAIL_COLOR, 0.22)
+	if real:
+		for sx in [-1.0, 1.0]:
+			var spot := SpotLight3D.new()
+			spot.light_color = HEAD_COLOR
+			spot.light_energy = 4.0
+			spot.spot_range = 36.0
+			spot.spot_angle = 30.0
+			spot.spot_attenuation = 0.8
+			spot.shadow_enabled = false
+			spot.position = Vector3(sx * half_w * 0.62, y + 0.1, front_z - 0.1)
+			spot.rotation_degrees = Vector3(-9.0, 0.0, 0.0)
+			spot.add_to_group(&"night_only")
+			spot.visible = ArtKit.lights_on
+			_lights_root.add_child(spot)
 
 
 func model() -> Node3D:

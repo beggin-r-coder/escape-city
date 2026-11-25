@@ -12,11 +12,16 @@ following the DashPanda *Escape City Development Guide v1.0*.
 > screenshots (see [Test harness](#test-harness)). It has not been run on a physical
 > Android device yet; see [What still needs a human](#what-still-needs-a-human).
 
-| Menu | Run | Chase | Results | Garage |
+| Menu (night) | Day | Dusk | Night | Results |
 |---|---|---|---|---|
-| ![menu](docs/screenshots/menu.png) | ![run](docs/screenshots/run.png) | ![chase](docs/screenshots/chase.png) | ![results](docs/screenshots/results.png) | ![garage](docs/screenshots/garage.png) |
+| ![menu](docs/screenshots/menu.png) | ![day](docs/screenshots/day.png) | ![dusk](docs/screenshots/dusk.png) | ![night](docs/screenshots/night.png) | ![results](docs/screenshots/results.png) |
 
-Art: [Kenney](https://www.kenney.nl) Car Kit, City Kit (Commercial) and City Kit (Roads), CC0.
+Art: [Kenney](https://www.kenney.nl) Car Kit, City Kit (Commercial), City Kit (Roads) and City Kit (Suburban), CC0.
+
+**Time of day** (Settings): a day-night cycle (the default; runs start at dusk), always day, or
+always night. At night, building windows glow, there are street lights on both sides of every
+road with light pools, the six lamps nearest the car cast real light, cars have headlights and
+tail lights (the player's are real spotlights), and police beacons wash the street red and blue.
 
 ## Run it
 
@@ -53,6 +58,8 @@ They're kept in the codebase on purpose: they're how the game gets tested withou
 | `--demo` | Start a run and let the autopilot drive (for video capture) |
 | `--probe=SEC` | With `--demo`: log a status line every `--every=SEC` (default 5) and report how often police were within 60 m. Add `--trace` for position, capture progress, HP and each cop's AI state |
 | `--seed=N` / `--heat=N` / `--god` | Fixed seed, start at heat stage N, no damage/capture |
+| `--time=MODE` | `day`, `night` or `cycle`; overrides the Time of day setting |
+| `--touch` / `--capture-warning` | With `--shot`: inject a real touch drag (shows the steer ring) / show the capture warning |
 | `--ad=MODE` | Fake ads: `earn` (default in harness), `dismiss`, `no_fill`, `interactive` |
 
 The autopilot (`game/dev/autopilot.gd`) drives along the lane graph. It picks junction exits

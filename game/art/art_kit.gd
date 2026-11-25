@@ -25,6 +25,12 @@ const KENNEY_DIR := "res://game/art/kenney/"
 static var _materials: Dictionary = {}
 static var _scenes: Dictionary = {}
 static var _aabbs: Dictionary = {}
+static var _kit_overrides: Dictionary = {}
+static var _night_mats: Array = []  # [material, mode ("emission"|"alpha"), base]
+static var _pool_tex: GradientTexture2D
+## 0 = full day, 1 = full night (lights at full strength). Set by DayNight.
+static var night_level: float = 0.0
+static var lights_on: bool = false
 static var _box: BoxMesh
 static var _cylinder: CylinderMesh
 static var _sphere: SphereMesh
@@ -48,6 +54,7 @@ static func mat(color: Color, emission: float = 0.0, unshaded: bool = false) -> 
 
 
 ## Instantiate a Kenney model, e.g. kenney("cars/police") or kenney("roads/road-straight").
+## Building kits get a shared material whose windows glow at night.
 static func kenney(path: String) -> Node3D:
 	if not _scenes.has(path):
 		_scenes[path] = load(KENNEY_DIR + path + ".glb")
@@ -55,7 +62,112 @@ static func kenney(path: String) -> Node3D:
 	if scene == null:
 		push_error("Missing Kenney model %s" % path)
 		return Node3D.new()
-	return scene.instantiate() as Node3D
+	var inst := scene.instantiate() as Node3D
+	var kit := path.get_slice("/", 0)
+	if (kit == "city" or kit == "suburban") and not path.contains("tree") and not path.contains("planter"):
+		var override := kit_override(kit)
+		for mi in inst.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).material_override = override
+	return inst
+
+
+## One material per building kit: the colormap plus a window emission mask
+## (tools/make_emission_masks.py) whose strength follows night_level.
+static func kit_override(kit: String) -> StandardMaterial3D:
+	if _kit_overrides.has(kit):
+		return _kit_overrides[kit]
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = load(KENNEY_DIR + kit + "/Textures/colormap.png")
+	m.roughness = 1.0
+	m.emission_enabled = true
+	m.emission = Color.WHITE
+	m.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY  # default ADD would light everything
+	m.emission_texture = load(KENNEY_DIR + kit + "/Textures/emission_windows.png")
+	_register_night(m, "emission", 1.3)
+	_kit_overrides[kit] = m
+	return m
+
+
+static func _register_night(m: BaseMaterial3D, mode: String, base: float) -> void:
+	_night_mats.append([m, mode, base])
+	_apply_night_entry([m, mode, base])
+
+
+static func _apply_night_entry(e: Array) -> void:
+	var m := e[0] as BaseMaterial3D
+	var base := float(e[2])
+	if str(e[1]) == "emission":
+		m.emission_energy_multiplier = base * night_level
+	else:
+		var c := m.albedo_color
+		c.a = base * night_level
+		m.albedo_color = c
+
+
+static func set_night(level: float) -> void:
+	night_level = clampf(level, 0.0, 1.0)
+	for e in _night_mats:
+		_apply_night_entry(e)
+
+
+## Unshaded emissive material for light sources (lamp heads, headlights) that brightens at night.
+static func night_glow(color: Color, base: float) -> StandardMaterial3D:
+	var key := "glow|%s|%.2f" % [color.to_html(), base]
+	if _materials.has(key):
+		return _materials[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color.darkened(0.35)
+	m.emission_enabled = true
+	m.emission = color
+	_register_night(m, "emission", base)
+	_materials[key] = m
+	return m
+
+
+## Additive radial light pool on the ground (fake light falloff, no real light cost).
+static func light_pool_mat(color: Color, strength: float) -> StandardMaterial3D:
+	var key := "pool|%s|%.2f" % [color.to_html(), strength]
+	if _materials.has(key):
+		return _materials[key]
+	if _pool_tex == null:
+		_pool_tex = GradientTexture2D.new()
+		_pool_tex.fill = GradientTexture2D.FILL_RADIAL
+		_pool_tex.fill_from = Vector2(0.5, 0.5)
+		_pool_tex.fill_to = Vector2(1.0, 0.5)
+		_pool_tex.width = 128
+		_pool_tex.height = 128
+		var g := Gradient.new()
+		g.set_color(0, Color(1, 1, 1, 1))
+		g.set_color(1, Color(1, 1, 1, 0))
+		g.add_point(0.45, Color(1, 1, 1, 0.55))
+		_pool_tex.gradient = g
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.no_depth_test = false
+	m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	m.albedo_texture = _pool_tex
+	m.albedo_color = Color(color.r, color.g, color.b, 0.0)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_register_night(m, "alpha", strength)
+	_materials[key] = m
+	return m
+
+
+## Flat additive quad on the ground; visible only when lights are on (group night_only).
+static func light_pool(parent: Node, center: Vector3, size: Vector2, color: Color, strength: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var q := PlaneMesh.new()
+	q.size = size
+	mi.mesh = q
+	mi.material_override = light_pool_mat(color, strength)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = center
+	mi.add_to_group(&"night_only")
+	mi.visible = lights_on
+	parent.add_child(mi)
+	return mi
 
 
 ## Combined mesh AABB of a Kenney model in its own (unscaled) space. Cached.
@@ -160,22 +272,16 @@ static func tree(parent: Node, pos: Vector3, scale_f: float) -> void:
 	body.add_to_group(&"static_world")
 	var shape := CollisionShape3D.new()
 	var cs := CylinderShape3D.new()
-	cs.radius = 0.5
+	cs.radius = 0.6
 	cs.height = 3.0
 	shape.shape = cs
 	shape.position = Vector3(0, 1.5, 0)
 	body.add_child(shape)
-	var trunk := MeshInstance3D.new()
-	trunk.mesh = cylinder_mesh()
-	trunk.material_override = mat(TRUNK)
-	trunk.transform = Transform3D(Basis.from_scale(Vector3(0.6, 3.0, 0.6)), Vector3(0, 1.5, 0))
-	body.add_child(trunk)
-	var crown := MeshInstance3D.new()
-	crown.mesh = sphere_mesh()
-	crown.material_override = mat(CROWN)
-	var s := 4.2 * scale_f
-	crown.transform = Transform3D(Basis.from_scale(Vector3(s, s * 0.9, s)), Vector3(0, 3.0 + s * 0.35, 0))
-	body.add_child(crown)
+	var large := fposmod(pos.x * 1.7 + pos.z * 0.9, 1.0) > 0.45
+	var m := kenney("suburban/tree-large" if large else "suburban/tree-small")
+	m.scale = Vector3.ONE * (15.0 if large else 17.0) * scale_f
+	m.rotation.y = fposmod(pos.x * 3.1 + pos.z * 1.3, TAU)
+	body.add_child(m)
 	parent.add_child(body)
 
 

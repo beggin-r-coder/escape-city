@@ -13,6 +13,12 @@ func _init() -> void:
 
 func open_screen() -> void:
 	visible = true
+	# Fade + slide in. Tweens bound to this node keep running while the tree is paused.
+	modulate.a = 0.0
+	position.y = 24.0
+	var tw := create_tween().set_parallel()
+	tw.tween_property(self, "modulate:a", 1.0, 0.18)
+	tw.tween_property(self, "position:y", 0.0, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func close_screen() -> void:

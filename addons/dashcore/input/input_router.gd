@@ -99,6 +99,19 @@ func is_brake_held() -> bool:
 	return not _brake_touches.is_empty() or Input.is_action_pressed(&"brake")
 
 
+## Drag-steer origin and current value, for an on-screen thumb indicator.
+func steer_touch_origin() -> Vector2:
+	return _steer_origin
+
+
+func steer_touch_value() -> float:
+	return _steer_touch
+
+
+func is_drag_steering() -> bool:
+	return _steer_index != -1
+
+
 func is_steering_by_touch() -> bool:
 	return _steer_index != -1 or not _button_touches.is_empty()
 

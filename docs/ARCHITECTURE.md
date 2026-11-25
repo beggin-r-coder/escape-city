@@ -76,6 +76,22 @@ duplicate ad callback has no effect. `ScoreService` consumes gameplay events, an
 * Skid marks use one MultiMesh ring buffer (a single draw call). Crash debris uses Kenney
   car-kit parts.
 
+## Night lighting (`game/art/day_night.gd`)
+
+* One darkness value drives sun/moon, ambient light, sky, fog and colour grading.
+* Shared night materials in `ArtKit` (window emission masks per building kit, lamp heads,
+  additive light pools, car lights) all scale from that value, so a full dusk-to-night change
+  is a loop over a handful of materials.
+* Night-only nodes (light pools, spotlights, beacons) sit in the `night_only` group and are
+  toggled once when the lights switch on.
+* Only a few real lights exist: 6 pooled OmniLights follow the lamps nearest the car, plus 2
+  player headlight SpotLights and one beacon per police car (at most 4). Everything else is
+  emissive or a fake light pool.
+* Zoning: 3×3-cell districts are commercial (towers, plazas, parking, construction) or
+  suburban (houses on lawns, parks), so neighbourhoods feel coherent.
+* With no reverse gear, a car nosed into static geometry at low speed pivots along the surface
+  to slide free. Police are not static, so being boxed in by them still ends in capture.
+
 ## Scene and folder contract
 
 `res://game/{scenes,controllers,generation,data,art,audio,ui}` hold this title.

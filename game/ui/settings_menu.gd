@@ -8,14 +8,15 @@ signal settings_changed
 
 func open_screen() -> void:
 	clear()
-	UiKit.dim_background(self, 0.8)
-	var col := UiKit.centered_column(self, 8)
+	UiKit.dim_background(self, 0.65)
+	var col := UiKit.card_column(self, 8, 640.0)
 	col.add_child(UiKit.label("SETTINGS", 48))
 	var store := DashCore.save_store
 	col.add_child(UiKit.slider_row("Music", float(store.get_setting("music_volume", 0.7)), _on_music))
 	col.add_child(UiKit.slider_row("Effects", float(store.get_setting("sfx_volume", 0.9)), _on_sfx))
 	col.add_child(_toggle("Controls", "control_layout", ["drag", "buttons"], ["Drag steer", "Left/Right buttons"]))
 	col.add_child(_toggle("Quality", "quality", ["low", "high"], ["Low", "High"]))
+	col.add_child(_toggle("Time of day", "time_of_day", ["cycle", "day", "night"], ["Day-night cycle", "Always day", "Always night"]))
 	col.add_child(_toggle("Reduced motion", "reduced_motion", [false, true], ["Off", "On"]))
 	col.add_child(_toggle("Haptics", "haptics", [true, false], ["On", "Off"]))
 	col.add_child(UiKit.secondary(UiKit.button("BACK", back_pressed.emit, Vector2(300, 80))))
@@ -26,11 +27,11 @@ func _toggle(title: String, key: String, values: Array, labels: Array) -> HBoxCo
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 20)
 	var l := UiKit.label(title, 26)
-	l.custom_minimum_size = Vector2(260, 0)
+	l.custom_minimum_size = Vector2(210, 0)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	row.add_child(l)
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(360, 72)
+	b.custom_minimum_size = Vector2(340, 72)
 	b.focus_mode = Control.FOCUS_NONE
 	var store := DashCore.save_store
 	var refresh := func() -> void:

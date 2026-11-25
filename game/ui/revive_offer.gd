@@ -15,8 +15,8 @@ var _busy: bool = false
 func open_with(reason: String) -> void:
 	clear()
 	_busy = false
-	UiKit.dim_background(self, 0.6)
-	var col := UiKit.centered_column(self, 16)
+	UiKit.dim_background(self, 0.55)
+	var col := UiKit.card_column(self, 16, 600.0)
 	col.add_child(UiKit.label(reason_title(reason), 72, Color("ff6b5a")))
 	col.add_child(UiKit.wrapped(UiKit.label(reason_hint(reason), 26, Color(0.9, 0.9, 0.95)), 600))
 	col.add_child(UiKit.button("REVIVE  (watch ad)", _on_revive, Vector2(460, 104)))

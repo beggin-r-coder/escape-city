@@ -11,7 +11,10 @@ extends Node
 ##   --seed=N         force the run seed (reproducible layouts)
 ##   --heat=N         start runs at heat stage N
 ##   --god            no damage/capture during play
+##   --time=MODE      day|night|cycle (overrides the Time of day setting)
 ##   --near-police    (with --shot) wait until a police car is 10-28 m away
+##   --touch          (with --shot) inject a real screen-touch drag (shows the steer ring)
+##   --capture-warning (with --shot) show the capture warning state
 ##   --demo           start a run and let the autopilot drive (for Movie Maker capture)
 ##   --probe=SEC      with --demo: status every --every=SEC, police-proximity summary, quit
 ##   --trace          with --probe: position, capture progress, HP and each cop's AI state
@@ -36,10 +39,15 @@ func start(app_root: Node, dev_flags: Dictionary) -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if flags.has("seed"):
 		run.forced_seed = int(flags["seed"])
+	elif flags.has("autotest"):
+		run.forced_seed = 20261125  # reproducible regression gate; pass --seed to vary
 	if flags.has("heat"):
 		run.start_heat_band = int(flags["heat"])
 	if flags.has("god"):
 		run.god_mode = true
+	if flags.has("time"):
+		run.forced_time = str(flags["time"])
+		run.apply_settings()
 	var fake := DashCore.ads as FakeAdsAdapter
 	if fake != null:
 		fake.mode = str(flags.get("ad", "earn"))
@@ -285,12 +293,15 @@ func _tutorial_script() -> void:
 	await wait(1.0)
 	r.override_brake = false
 	expect(tut.step == 2, "tutorial step 1 (brake) completes")
+	status("TUT after brake")
 	# Step 2: regain speed, then brake + steer to drift.
 	await wait(2.5)
 	for attempt in 3:
+		status("TUT drift attempt %d" % attempt)
 		r.override_brake = true
-		r.override_steer = 1.0 if attempt % 2 == 0 else -1.0
+		r.override_steer = -1.0 if attempt % 2 == 0 else 1.0  # left first: toward open road
 		await wait(1.4)
+		log_line("  drift_time=%.2f drifting=%s" % [run.player.drift_time, run.player.drifting])
 		r.override_brake = false
 		r.override_steer = 0.0
 		if tut.step >= 3:
@@ -333,6 +344,27 @@ func _single_shot() -> void:
 			driving = true
 			default_wait = 10.0
 	await wait(float(flags.get("wait", default_wait)))
+	if flags.has("touch"):
+		# Real touch events through the input pipeline: press, then drag right.
+		driving = false
+		autopilot.release(run.router)
+		var down := InputEventScreenTouch.new()
+		down.index = 0
+		down.position = Vector2(180, 980)
+		down.pressed = true
+		Input.parse_input_event(down)
+		for k in 6:
+			var drag := InputEventScreenDrag.new()
+			drag.index = 0
+			drag.position = Vector2(180 + 12 * (k + 1), 980)
+			Input.parse_input_event(drag)
+			await get_tree().process_frame
+		await wait(0.4)
+	if flags.has("capture-warning"):
+		run.capture.progress = run.capture.required_seconds * 0.6
+		run.hud.update_threats(0.6, 0.0)
+		run.god_mode = false
+		await get_tree().process_frame
 	if flags.has("near-police"):
 		var near := func() -> bool:
 			var d := run.director.nearest_police_distance()

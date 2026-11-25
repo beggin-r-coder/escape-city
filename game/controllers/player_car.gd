@@ -33,6 +33,7 @@ var _is_wrecked: bool = false
 var _contact_cooldowns: Dictionary = {}
 var _prev_pos: Vector3 = Vector3.ZERO
 var _last_speed: float = 0.0
+var _wall_normal: Vector3 = Vector3.ZERO  # set this step when pressed against static geometry
 
 
 func setup(handling: HandlingConfig, input_router: InputRouter) -> void:
@@ -56,6 +57,7 @@ func set_look(model_name: String) -> void:
 		visual.name = "Visual"
 		add_child(visual)
 	visual.build(model_name)
+	visual.add_lights(true)
 	visual.teleport(global_transform)
 
 
@@ -154,6 +156,7 @@ func _physics_process(delta: float) -> void:
 	var planar := forward() * speed + right() * lateral
 	velocity = Vector3(planar.x, -2.0, planar.z)
 	var pre_velocity := velocity
+	_wall_normal = Vector3.ZERO
 	move_and_slide()
 	_handle_collisions(pre_velocity)
 	# Keep the speed state honest: if the car is pinned (boxed in by police, wedged on a
@@ -162,6 +165,14 @@ func _physics_process(delta: float) -> void:
 	var actual_forward := Vector3(real.x, 0.0, real.z).dot(forward())
 	if actual_forward < speed - 0.5:
 		speed = maxf(actual_forward, 0.0)
+	# No reverse gear: when nosed into a wall/pole/tree at low speed, pivot along the
+	# surface so the car slides free instead of sitting stuck. (Police are not walls,
+	# so being boxed in by them still leads to capture.)
+	if _wall_normal != Vector3.ZERO and speed < 3.0 and controls_enabled and not _is_wrecked:
+		var t1 := Vector3(-_wall_normal.z, 0.0, _wall_normal.x)
+		var tangent := t1 if t1.dot(forward()) >= 0.0 else -t1
+		heading = rotate_toward(heading, LaneGraph.heading_of(tangent), 2.2 * delta)
+		yaw_rate = 0.0
 
 	var moved := global_position - _prev_pos
 	moved.y = 0.0
@@ -201,6 +212,8 @@ func _handle_collisions(pre_velocity: Vector3) -> void:
 func _wall_contact(other: Object, n: Vector3, pre_velocity: Vector3) -> void:
 	var planar := Vector3(pre_velocity.x, 0, pre_velocity.z)
 	var impact_speed := maxf(0.0, planar.dot(-n))
+	if forward().dot(-n) > 0.3:
+		_wall_normal = n
 	if impact_speed < 1.0:
 		return
 	var head_on := speed > 0.5 and impact_speed > 0.7 * speed

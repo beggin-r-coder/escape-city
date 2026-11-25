@@ -28,19 +28,26 @@ func _init(lane_graph: LaneGraph, seed_service: SeedService, defs: Array[ChunkDe
 
 
 func choose_definition(cell: Vector2i, band: int) -> ChunkDefinition:
+	# Zoning: 3x3-cell districts are either commercial or suburban, so neighbourhoods
+	# feel coherent instead of a random patchwork.
+	var commercial := seeds.cell_value(SeedService.STREAM_ROUTE, floori(cell.x / 3.0), floori(cell.y / 3.0), 91) < 0.45
 	var compatible: Array[ChunkDefinition] = []
+	var weights: Array[float] = []
 	var total := 0.0
 	for d in definitions:
 		if d.allows_band(band) and not d.is_recovery and d.weight > 0.0:
+			var suburb_kind := d.kind == ChunkDefinition.Kind.RESIDENTIAL or d.kind == ChunkDefinition.Kind.PARK
+			var w := d.weight * (3.0 if suburb_kind != commercial else 0.25)
 			compatible.append(d)
-			total += d.weight
+			weights.append(w)
+			total += w
 	if compatible.is_empty():
 		return recovery
 	var roll := seeds.cell_value(SeedService.STREAM_ROUTE, cell.x, cell.y, 3) * total
-	for d in compatible:
-		roll -= d.weight
+	for k in compatible.size():
+		roll -= weights[k]
 		if roll <= 0.0:
-			return d
+			return compatible[k]
 	return compatible[compatible.size() - 1]
 
 

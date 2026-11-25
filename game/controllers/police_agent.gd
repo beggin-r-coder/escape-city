@@ -41,6 +41,7 @@ const RAM_RECOIL_SPEED := 0.85
 var visual: CarVisual
 var _yaw_rate: float = 0.0
 var _last_speed: float = 0.0
+var _beacon: OmniLight3D
 var _red: StandardMaterial3D
 var _blue: StandardMaterial3D
 
@@ -68,6 +69,7 @@ func set_skin(model_name: String) -> void:
 		add_child(visual)
 	if visual.model() == null or visual.get_meta(&"model", "") != model_name:
 		visual.build(model_name)
+		visual.add_lights(false)
 		visual.set_meta(&"model", model_name)
 		_add_light_flash()
 
@@ -83,6 +85,15 @@ func _add_light_flash() -> void:
 	var y := 1.12 * visual.model_scale
 	ArtKit.box(holder, Vector3(0.42, 0.14, 0.3), Vector3(-0.3, y, 0.05), _red)
 	ArtKit.box(holder, Vector3(0.42, 0.14, 0.3), Vector3(0.3, y, 0.05), _blue)
+	# At night a real beacon washes the street red/blue (max 4 police: affordable).
+	_beacon = OmniLight3D.new()
+	_beacon.omni_range = 11.0
+	_beacon.light_energy = 2.6
+	_beacon.shadow_enabled = false
+	_beacon.position = Vector3(0, y + 0.6, 0)
+	_beacon.add_to_group(&"night_only")
+	_beacon.visible = ArtKit.lights_on
+	holder.add_child(_beacon)
 
 
 func activate(pos: Vector3, new_heading: float, tuning: Dictionary) -> void:
@@ -304,6 +315,8 @@ func _flash(delta: float) -> void:
 	var on := fmod(_flash_t, 2.0) < 1.0
 	_red.albedo_color = Color("ff2233") if on else Color("4a1015")
 	_blue.albedo_color = Color("1b2a50") if on else Color("3a7bff")
+	if _beacon != null:
+		_beacon.light_color = Color("ff2a3a") if on else Color("3a6bff")
 
 
 func apply_origin_shift(offset: Vector3) -> void:

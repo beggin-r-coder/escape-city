@@ -22,6 +22,9 @@ func _initialize() -> void:
 		"city":
 			items = ["city/building-a", "city/building-d", "city/building-h", "city/building-k", "city/building-skyscraper-a", "city/building-skyscraper-c", "city/detail-awning-wide", "city/detail-parasol-a"]
 			top = false
+		"suburban":
+			items = ["suburban/building-type-a", "suburban/building-type-k", "suburban/building-type-t", "suburban/tree-large", "suburban/tree-small", "suburban/planter", "suburban/fence-low", "suburban/driveway-short"]
+			top = false
 		"cars":
 			items = ["cars/sedan-sports", "cars/hatchback-sports", "cars/race", "cars/police", "cars/taxi", "cars/suv", "cars/van", "cars/truck"]
 			top = false

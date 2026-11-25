@@ -74,6 +74,7 @@ func _reset_chunk(obj: Object) -> void:
 	var n := obj as Node3D
 	for child in n.get_children():
 		child.queue_free()
+	n.set_meta(&"lamps", [])
 	n.visible = false
 
 
@@ -223,6 +224,20 @@ func apply_origin_shift(_offset: Vector3) -> void:
 		var rec: Dictionary = active[cell]
 		(rec["node"] as Node3D).position = graph.node_world(cell)
 	safe_radius = 0.0
+
+
+## World positions of street-lamp heads in active cells within `radius` of `p`.
+func lamp_positions_near(p: Vector3, radius: float) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var r2 := radius * radius
+	for cell in active.keys():
+		var node := (active[cell] as Dictionary)["node"] as Node3D
+		var local: Array = node.get_meta(&"lamps", [])
+		for l in local:
+			var wp: Vector3 = node.global_position + (l as Vector3)
+			if wp.distance_squared_to(p) < r2:
+				out.append(wp)
+	return out
 
 
 func active_cell_count() -> int:

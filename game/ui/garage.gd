@@ -11,8 +11,8 @@ var catalog: CosmeticCatalog
 
 func open_screen() -> void:
 	clear()
-	UiKit.dim_background(self, 0.8)
-	var col := UiKit.centered_column(self, 10)
+	UiKit.dim_background(self, 0.65)
+	var col := UiKit.card_column(self, 10, 640.0)
 	col.add_child(UiKit.label("GARAGE", 48))
 	var wallet := DashCore.wallet
 	col.add_child(UiKit.label("%d coins" % wallet.balance(), 30, ArtKit.COIN))
@@ -28,18 +28,18 @@ func open_screen() -> void:
 		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		row.add_child(icon)
 		var name_label := UiKit.label(catalog.player_names[i], 28)
-		name_label.custom_minimum_size = Vector2(220, 0)
+		name_label.custom_minimum_size = Vector2(200, 0)
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		row.add_child(name_label)
 		var b: Button
 		if wallet.equipped() == id:
-			b = UiKit.button("EQUIPPED", Callable(), Vector2(260, 84))
+			b = UiKit.button("EQUIPPED", Callable(), Vector2(240, 84))
 			b.disabled = true
 		elif wallet.is_unlocked(id):
-			b = UiKit.button("EQUIP", _equip.bind(id), Vector2(260, 84))
+			b = UiKit.button("EQUIP", _equip.bind(id), Vector2(240, 84))
 		else:
 			var price := catalog.player_prices[i]
-			b = UiKit.button("BUY %d" % price, _buy.bind(id, price), Vector2(260, 84))
+			b = UiKit.button("BUY %d" % price, _buy.bind(id, price), Vector2(240, 84))
 			b.disabled = wallet.balance() < price
 		row.add_child(b)
 		col.add_child(row)

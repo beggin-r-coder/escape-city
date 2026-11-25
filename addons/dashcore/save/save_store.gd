@@ -45,6 +45,7 @@ static func default_data() -> Dictionary:
 			"reduced_motion": false,
 			"haptics": true,
 			"quality": "low",
+			"time_of_day": "cycle",
 		},
 	}
 
