@@ -70,6 +70,13 @@ func _update(delta: float, instant: bool) -> void:
 		fov = base_fov
 		return
 	var car_heading := LaneGraph.heading_of(-txf.basis.z)
+	# In a slide, look where the car is going rather than where its nose points, so drifts
+	# feel fluid instead of swinging the whole view.
+	var planar_vel := Vector3(target.velocity.x, 0.0, target.velocity.z)
+	if planar_vel.length() > 5.0:
+		var travel := LaneGraph.heading_of(planar_vel.normalized())
+		var slide := clampf(absf(target.lateral) / 6.0, 0.0, 1.0)
+		car_heading = lerp_angle(car_heading, travel, 0.6 * slide)
 	_cam_heading = lerp_angle(_cam_heading, car_heading, 1.0 if instant else _damp(5.0, delta))
 	var fwd := LaneGraph.forward_of(_cam_heading)
 	var right := Vector3(-fwd.z, 0.0, fwd.x)

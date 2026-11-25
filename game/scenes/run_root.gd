@@ -198,6 +198,7 @@ func apply_settings() -> void:
 	router.layout = InputRouter.Layout.BUTTONS if layout_name == "buttons" else InputRouter.Layout.DRAG
 	hud.set_layout(router.layout)
 	camera.reduced_motion = bool(store.get_setting("reduced_motion", false))
+	player.grippy = str(store.get_setting("handling", "drifty")) == "grippy"
 	QualityPresets.apply(str(store.get_setting("quality", "low")), get_viewport(), sun, env)
 	var tod := forced_time if not forced_time.is_empty() else str(store.get_setting("time_of_day", "cycle"))
 	if day_night != null and day_night.mode != tod:
@@ -479,7 +480,7 @@ func _update_hud() -> void:
 
 func _update_audio() -> void:
 	audio.engine_speed = player.speed
-	audio.skid_level = 1.0 if player.drifting else 0.0
+	audio.skid_level = clampf(absf(player.lateral) / 6.0, 0.0, 1.0) if player.drifting else 0.0
 	var nearest := director.nearest_police_distance()
 	audio.siren_level = 0.0 if nearest == INF else clampf(1.0 - nearest / 130.0, 0.0, 1.0)
 

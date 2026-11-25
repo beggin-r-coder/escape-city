@@ -44,3 +44,10 @@ jobs:
           ./godot --headless --fixed-fps 60 --path . -- --fresh --autotest 2>&1 | tee autotest.log
           grep -q "\[autotest\] done failures=0" autotest.log
           ! grep -E "SCRIPT ERROR|Parse Error" autotest.log
+
+      - name: Handling contract (drifty slides, grippy grips)
+        run: |
+          for mode in drifty grippy; do
+            ./godot --headless --fixed-fps 60 --path . -- --fresh --seed=5 --maneuver --handling=$mode 2>&1 | tee maneuver_$mode.log
+            grep -q "\[autotest\] done failures=0" maneuver_$mode.log
+          done

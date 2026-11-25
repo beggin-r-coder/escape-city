@@ -46,6 +46,7 @@ static func default_data() -> Dictionary:
 			"haptics": true,
 			"quality": "low",
 			"time_of_day": "cycle",
+			"handling": "drifty",
 		},
 	}
 

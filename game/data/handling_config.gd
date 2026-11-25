@@ -6,7 +6,6 @@ extends Resource
 @export var max_speed: float = 22.0
 @export var acceleration: float = 7.0
 @export var brake_deceleration: float = 16.0
-@export var drift_brake_deceleration: float = 5.0
 @export var min_brake_speed: float = 0.0
 
 @export_group("Steering")
@@ -18,13 +17,23 @@ extends Resource
 @export var yaw_response: float = 10.0
 
 @export_group("Drift")
-@export var drift_min_speed: float = 8.0
-@export var drift_steer_threshold: float = 0.3
-@export var drift_yaw_multiplier: float = 1.45
-@export var drift_slip_accel: float = 14.0
-@export var max_lateral_slip: float = 6.0
-@export var grip: float = 16.0
-@export var drift_grip: float = 4.0
+## Momentum model: steering turns the nose, velocity follows only as fast as the tyres
+## allow. Lateral (sideways) speed is pulled to zero at `grip` m/s^2 while gripping.
+@export var grip: float = 22.0
+## Once sideways speed passes slip_threshold the tyres break loose and grip falls to
+## drift_grip until it drops below regrip_threshold (hysteresis = long, holdable slides).
+@export var drift_grip: float = 4.5
+@export var slip_threshold: float = 3.0
+@export var regrip_threshold: float = 1.2
+## Braking while turning works like a handbrake: grip multiplied by this.
+@export var brake_grip_factor: float = 0.3
+@export var drift_min_speed: float = 7.0
+@export var drift_yaw_multiplier: float = 1.3
+@export var max_lateral_slip: float = 9.0
+## Forward speed scrubbed per second while sliding.
+@export var drift_drag: float = 2.5
+## "Grippy" handling option multiplies grip by this (accessibility / easier mode).
+@export var grippy_multiplier: float = 1.8
 
 @export_group("Damage")
 @export var max_health: float = 100.0

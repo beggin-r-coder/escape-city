@@ -3,7 +3,7 @@ extends RefCounted
 ## Dev/test flags, passed after `--` on the Godot command line. See README "Test harness".
 
 const FRESH_SAVE := "user://dev_fresh_save.json"
-const HARNESS_KEYS := ["autotest", "shot", "shots", "screen", "demo"]
+const HARNESS_KEYS := ["autotest", "shot", "shots", "screen", "demo", "maneuver"]
 
 
 static func parse(args: PackedStringArray) -> Dictionary:

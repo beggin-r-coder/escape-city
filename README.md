@@ -58,6 +58,7 @@ They're kept in the codebase on purpose: they're how the game gets tested withou
 | `--demo` | Start a run and let the autopilot drive (for video capture) |
 | `--probe=SEC` | With `--demo`: log a status line every `--every=SEC` (default 5) and report how often police were within 60 m. Add `--trace` for position, capture progress, HP and each cop's AI state |
 | `--seed=N` / `--heat=N` / `--god` | Fixed seed, start at heat stage N, no damage/capture |
+| `--handling=MODE` / `--maneuver` | `drifty` or `grippy`; scripted flick, full-lock and brake-turn at speed, printing slide and drift numbers and failing if the handling contract breaks |
 | `--time=MODE` | `day`, `night` or `cycle`; overrides the Time of day setting |
 | `--touch` / `--capture-warning` | With `--shot`: inject a real touch drag (shows the steer ring) / show the capture warning |
 | `--ad=MODE` | Fake ads: `earn` (default in harness), `dismiss`, `no_fill`, `interactive` |
@@ -103,10 +104,12 @@ The README screenshots in `docs/screenshots/` are regenerated this way before co
 |---|---|---|
 | Steer | Drag with your left thumb anywhere on the left half (floating stick), **or** the optional left/right buttons (Settings → Controls) | A / D or ← / → |
 | Brake | Hold the **BRAKE** pad, bottom right | Space / S / ↓ |
-| Drift | Hold brake **and** steer above 8 m/s (capped drift assist) | brake + steer |
+| Drift | Steer hard at speed and the rear steps out; add brake to kick it out further (handbrake). Counter-steer or straighten up to regain grip | steer hard / brake + steer |
 | Pause | **II** button, top right | Esc / P |
 
-The car accelerates by itself (auto-throttle). On desktop the mouse acts as a touch, so you
+The car accelerates by itself (auto-throttle). The default **Drifty** handling is deliberately
+slippery: the car carries momentum through turns, and once the tyres break loose it keeps
+sliding until you straighten up. Settings → Handling → **Grippy** is the easier option. On desktop the mouse acts as a touch, so you
 can try drag steering with it.
 
 ## How a run plays

@@ -15,6 +15,7 @@ func open_screen() -> void:
 	col.add_child(UiKit.slider_row("Music", float(store.get_setting("music_volume", 0.7)), _on_music))
 	col.add_child(UiKit.slider_row("Effects", float(store.get_setting("sfx_volume", 0.9)), _on_sfx))
 	col.add_child(_toggle("Controls", "control_layout", ["drag", "buttons"], ["Drag steer", "Left/Right buttons"]))
+	col.add_child(_toggle("Handling", "handling", ["drifty", "grippy"], ["Drifty", "Grippy"]))
 	col.add_child(_toggle("Quality", "quality", ["low", "high"], ["Low", "High"]))
 	col.add_child(_toggle("Time of day", "time_of_day", ["cycle", "day", "night"], ["Day-night cycle", "Always day", "Always night"]))
 	col.add_child(_toggle("Reduced motion", "reduced_motion", [false, true], ["Off", "On"]))

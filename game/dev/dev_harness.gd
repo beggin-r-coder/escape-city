@@ -18,6 +18,8 @@ extends Node
 ##   --demo           start a run and let the autopilot drive (for Movie Maker capture)
 ##   --probe=SEC      with --demo: status every --every=SEC, police-proximity summary, quit
 ##   --trace          with --probe: position, capture progress, HP and each cop's AI state
+##   --handling=MODE  drifty|grippy (overrides the Handling setting)
+##   --maneuver       scripted full-lock turns at speed; prints slide/drift numbers per move
 ##   --ad=MODE        fake ads: earn|dismiss|no_fill|interactive
 
 const S := RunSession.State
@@ -30,6 +32,14 @@ var shots_dir: String = ""
 var failures: int = 0
 var driving: bool = false
 var _shot_index: int = 0
+# Handling stats (probe): how slippery does the car actually drive?
+var _drive_time: float = 0.0
+var _drift_time: float = 0.0
+var _drift_run: float = 0.0
+var _longest_drift: float = 0.0
+var _max_slip_deg: float = 0.0
+var _spinouts: int = 0
+var _spinning: bool = false
 
 
 func start(app_root: Node, dev_flags: Dictionary) -> void:
@@ -55,7 +65,11 @@ func start(app_root: Node, dev_flags: Dictionary) -> void:
 	shots_dir = str(flags.get("shots", ""))
 	if not shots_dir.is_empty():
 		DirAccess.make_dir_recursive_absolute(shots_dir)
-	if flags.has("demo"):
+	if flags.has("handling"):
+		run.player.grippy = str(flags["handling"]) == "grippy"
+	if flags.has("maneuver"):
+		_maneuver.call_deferred()
+	elif flags.has("demo"):
 		_demo.call_deferred()
 	elif flags.has("autotest") or not shots_dir.is_empty():
 		_autotest.call_deferred()
@@ -69,6 +83,25 @@ func _physics_process(_delta: float) -> void:
 	var st := run.session.state
 	if st == S.RUNNING or st == S.TUTORIAL:
 		autopilot.update(run.router)
+		_track_handling(1.0 / Engine.physics_ticks_per_second)
+
+
+func _track_handling(dt: float) -> void:
+	var p := run.player
+	_drive_time += dt
+	if p.drifting:
+		_drift_time += dt
+		_drift_run += dt
+		_longest_drift = maxf(_longest_drift, _drift_run)
+	else:
+		_drift_run = 0.0
+	if p.speed > 4.0 or absf(p.lateral) > 4.0:
+		var slip := rad_to_deg(absf(atan2(p.lateral, maxf(p.speed, 0.01))))
+		_max_slip_deg = maxf(_max_slip_deg, slip)
+		var spun := slip > 100.0
+		if spun and not _spinning:
+			_spinouts += 1
+		_spinning = spun
 
 
 # ------------------------------------------------------------------ helpers
@@ -419,5 +452,60 @@ func _demo() -> void:
 			if d < 60.0:
 				close += 1
 		log_line("streaming activations=%d max_cell_ms=%.2f" % [run.world.activations, run.world.max_activate_usec / 1000.0])
+		log_line("handling drift=%d%% longest_drift=%.1fs max_slip=%d deg spinouts=%d" % [int(100.0 * _drift_time / maxf(_drive_time, 0.01)), _longest_drift, int(_max_slip_deg), _spinouts])
 		log_line("probe samples=%d within60m=%d%%" % [samples.size(), int(100.0 * close / maxf(1.0, samples.size()))])
 		finish()
+
+
+# ------------------------------------------------------------------ handling maneuver test
+
+## Player-like inputs on a straight road: a hard flick, a sustained full lock, and a
+## brake-turn. Prints peak sideways speed, peak slide angle and drift duration for each.
+func _maneuver() -> void:
+	DashCore.save_store.data["tutorial_done"] = true
+	run.god_mode = true
+	await wait(0.5)
+	(app.get("main_menu") as MainMenu).play_pressed.emit()
+	await wait_until(func() -> bool: return state() == S.RUNNING, 6.0)
+	var r := run.router
+	r.override_active = true
+	# Pure handling: no walls/traffic in the way while measuring.
+	var saved_mask := run.player.collision_mask
+	run.player.collision_mask = 0
+	var moves := [["flick 0.35s", 0.35, false], ["full lock 0.8s", 0.8, false], ["brake-turn 0.6s", 0.6, true]]
+	for mv in moves:
+		var pose := run.find_revive_pose()
+		run.player.restore_for_revive(pose[0], float(pose[1]), 1.0, 0.0)
+		run.player.speed = run.player.cruise_speed
+		r.override_steer = 0.0
+		r.override_brake = false
+		await wait(0.3)
+		var peak_lat := 0.0
+		var peak_deg := 0.0
+		var drift := 0.0
+		var t := 0.0
+		var hold := float(mv[1])
+		while t < hold + 2.5:
+			r.override_steer = 1.0 if t < hold else 0.0
+			r.override_brake = bool(mv[2]) and t < hold
+			await get_tree().physics_frame
+			var dt := 1.0 / Engine.physics_ticks_per_second
+			t += dt
+			var p := run.player
+			peak_lat = maxf(peak_lat, absf(p.lateral))
+			peak_deg = maxf(peak_deg, rad_to_deg(absf(atan2(p.lateral, maxf(p.speed, 0.01)))))
+			if p.drifting:
+				drift += dt
+			if flags.has("trace") and int(t * 60) % 6 == 0 and t < hold + 0.3:
+				log_line("   t=%.2f v=%.1f lat=%.2f yaw=%.2f steer=%.2f drift=%s" % [t, p.speed, p.lateral, p.yaw_rate, p.steer, p.drifting])
+		log_line("maneuver %-16s grippy=%s peak_sideways=%.1f m/s peak_slide=%d deg drift=%.2fs" % [mv[0], run.player.grippy, peak_lat, int(peak_deg), drift])
+		# Handling contract: Drifty slides on hard inputs, Grippy stays planted, flicks stay controllable.
+		var name_s := str(mv[0])
+		if name_s.begins_with("flick"):
+			expect(peak_lat < 3.0, "a quick flick stays controllable (%.1f m/s)" % peak_lat)
+		elif run.player.grippy:
+			expect(drift == 0.0, "grippy does not drift on %s" % name_s)
+		else:
+			expect(drift > 1.0 and peak_deg > 30.0, "drifty drifts on %s (%.2fs, %d deg)" % [name_s, drift, int(peak_deg)])
+	run.player.collision_mask = saved_mask
+	finish()

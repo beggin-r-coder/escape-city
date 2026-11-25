@@ -9,7 +9,7 @@ signal completed
 const STEPS := [
 	"Drag your LEFT thumb left and right to steer",
 	"Hold BRAKE (right side) to slow down",
-	"Hold BRAKE and steer to DRIFT around a corner",
+	"Steer hard to DRIFT - add BRAKE to kick the tail out",
 	"Police incoming! Break line of sight and get far away to ESCAPE",
 ]
 

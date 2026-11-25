@@ -28,6 +28,8 @@ var steer_used: Vector2 = Vector2.ZERO  # tutorial tracking: x = left used, y = 
 var drift_time: float = 0.0
 var visual: CarVisual
 var yaw_rate: float = 0.0
+## Accessibility option: much more grip, rarely slides.
+var grippy: bool = false
 
 var _is_wrecked: bool = false
 var _contact_cooldowns: Dictionary = {}
@@ -118,27 +120,7 @@ func _physics_process(delta: float) -> void:
 	elif steer_in > 0.5:
 		steer_used.y = 1.0
 
-	# Longitudinal: auto-throttle toward cruise, brake toward min speed.
-	if _is_wrecked:
-		speed = move_toward(speed, 0.0, 12.0 * delta)
-	elif braking:
-		var decel := config.drift_brake_deceleration if drifting else config.brake_deceleration
-		speed = move_toward(speed, config.min_brake_speed, decel * delta)
-	elif controls_enabled:
-		var target := minf(cruise_speed, config.max_speed)
-		var rate := config.acceleration if speed < target else config.acceleration * 0.5
-		speed = move_toward(speed, target, rate * delta)
-	else:
-		speed = move_toward(speed, 0.0, config.brake_deceleration * delta)
-
-	# Drift assist: braking + steering above a speed threshold, capped yaw and slip.
-	var want_drift := braking and absf(steer) > config.drift_steer_threshold and speed > config.drift_min_speed
-	if want_drift != drifting:
-		drifting = want_drift
-		drift_changed.emit(drifting)
-	if drifting:
-		drift_time += delta
-
+	# --- Steering: yaw rate eases toward the input (more when sliding = oversteer).
 	var authority := clampf(speed / config.steer_full_speed, 0.0, 1.0)
 	var t := clampf(speed / config.max_speed, 0.0, 1.0)
 	var rate_yaw := lerpf(config.steer_rate_low_speed, config.steer_rate_high_speed, t)
@@ -146,11 +128,48 @@ func _physics_process(delta: float) -> void:
 	if drifting:
 		yaw *= config.drift_yaw_multiplier
 	yaw_rate = move_toward(yaw_rate, yaw, config.yaw_response * delta)
-	heading = wrapf(heading + yaw_rate * delta, -PI, PI)
 
+	# --- Momentum: turn the nose, keep the world velocity, re-project onto the new axes.
+	# Whatever the car was doing sideways is now "slip" the tyres must fight.
+	var world_vel := forward() * speed + right() * lateral
+	heading = wrapf(heading + yaw_rate * delta, -PI, PI)
+	speed = world_vel.dot(forward())
+	lateral = world_vel.dot(right())
+
+	# --- Longitudinal: auto-throttle toward cruise (keeps pushing in a drift = power slide).
+	if _is_wrecked:
+		speed = move_toward(speed, 0.0, 12.0 * delta)
+	elif braking:
+		# Braking into a slide scrubs gently so a handbrake flick turns into a holdable drift.
+		var turning := absf(steer) > 0.25
+		var decel_mult := 0.22 if drifting else (0.5 if turning else 1.0)
+		speed = move_toward(speed, config.min_brake_speed, config.brake_deceleration * decel_mult * delta)
+	elif controls_enabled:
+		var target := minf(cruise_speed, config.max_speed)
+		var rate := config.acceleration if speed < target else config.acceleration * 0.5
+		speed = move_toward(speed, target, rate * delta)
+	else:
+		speed = move_toward(speed, 0.0, config.brake_deceleration * delta)
+
+	# --- Tyres: grip until the slide breaks loose, then slippery until it settles.
+	var grip_mult := config.grippy_multiplier if grippy else 1.0
+	var slip := absf(lateral)
+	var ground_speed := Vector2(speed, lateral).length()  # mid-slide most motion is sideways
+	var want_drift := drifting
+	if not drifting and slip > config.slip_threshold * grip_mult and ground_speed > config.drift_min_speed:
+		want_drift = true
+	elif drifting and (slip < config.regrip_threshold or ground_speed < config.drift_min_speed * 0.6):
+		want_drift = false
+	if want_drift != drifting:
+		drifting = want_drift
+		drift_changed.emit(drifting)
+	var g := (config.drift_grip if drifting else config.grip) * grip_mult
+	if braking and absf(steer) > 0.25 and ground_speed > config.drift_min_speed:
+		g *= config.brake_grip_factor  # handbrake turn
+	lateral = clampf(move_toward(lateral, 0.0, g * delta), -config.max_lateral_slip, config.max_lateral_slip)
 	if drifting:
-		lateral = clampf(lateral - steer * config.drift_slip_accel * delta, -config.max_lateral_slip, config.max_lateral_slip)
-	lateral = move_toward(lateral, 0.0, (config.drift_grip if drifting else config.grip) * delta)
+		drift_time += delta
+		speed = maxf(0.0, speed - config.drift_drag * delta)
 
 	rotation = Vector3(0, heading, 0)
 	var planar := forward() * speed + right() * lateral
