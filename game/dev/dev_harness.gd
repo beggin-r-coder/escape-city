@@ -19,6 +19,8 @@ extends Node
 ##   --probe=SEC      with --demo: status every --every=SEC, police-proximity summary, quit
 ##   --trace          with --probe: position, capture progress, HP and each cop's AI state
 ##   --handling=MODE  drifty|grippy (overrides the Handling setting)
+##   --empty          hide city blocks (open asphalt) for handling renders
+##   --closeup        low chase camera (review body roll, tail swing, smoke)
 ##   --maneuver       scripted full-lock turns at speed; prints slide/drift numbers per move
 ##   --ad=MODE        fake ads: earn|dismiss|no_fill|interactive
 
@@ -40,6 +42,10 @@ var _longest_drift: float = 0.0
 var _max_slip_deg: float = 0.0
 var _spinouts: int = 0
 var _spinning: bool = false
+var _player_speed_sum: float = 0.0
+var _police_speed_sum: float = 0.0
+var _police_samples: int = 0
+var _samples: int = 0
 
 
 func start(app_root: Node, dev_flags: Dictionary) -> void:
@@ -65,6 +71,18 @@ func start(app_root: Node, dev_flags: Dictionary) -> void:
 	shots_dir = str(flags.get("shots", ""))
 	if not shots_dir.is_empty():
 		DirAccess.make_dir_recursive_absolute(shots_dir)
+	if flags.has("closeup"):
+		# Low chase camera for reviewing car body motion, smoke and tail swing.
+		run.camera.distance = 6.5
+		run.camera.height = 5.5
+		run.camera.look_ahead = 3.0
+		run.camera.base_fov = 70.0
+		run.camera.wide_fov = 74.0
+		run.camera.rigid = true
+	if flags.has("empty"):
+		run.world.debug_hide_blocks = true
+		for cell in run.world.active.keys():
+			((run.world.active[cell] as Dictionary)["node"] as Node3D).visible = false
 	if flags.has("handling"):
 		run.player.grippy = str(flags["handling"]) == "grippy"
 	if flags.has("maneuver"):
@@ -89,6 +107,13 @@ func _physics_process(_delta: float) -> void:
 func _track_handling(dt: float) -> void:
 	var p := run.player
 	_drive_time += dt
+	_samples += 1
+	_player_speed_sum += Vector2(p.velocity.x, p.velocity.z).length()
+	for cop in run.director.police():
+		var c := cop as PoliceAgent
+		if c.mode != PoliceAgent.Mode.DISENGAGE and c.active:
+			_police_speed_sum += Vector2(c.velocity.x, c.velocity.z).length()
+			_police_samples += 1
 	if p.drifting:
 		_drift_time += dt
 		_drift_run += dt
@@ -452,6 +477,7 @@ func _demo() -> void:
 			if d < 60.0:
 				close += 1
 		log_line("streaming activations=%d max_cell_ms=%.2f" % [run.world.activations, run.world.max_activate_usec / 1000.0])
+		log_line("speeds player_avg=%.1f m/s police_avg=%.1f m/s" % [_player_speed_sum / maxf(_samples, 1), _police_speed_sum / maxf(_police_samples, 1)])
 		log_line("handling drift=%d%% longest_drift=%.1fs max_slip=%d deg spinouts=%d" % [int(100.0 * _drift_time / maxf(_drive_time, 0.01)), _longest_drift, int(_max_slip_deg), _spinouts])
 		log_line("probe samples=%d within60m=%d%%" % [samples.size(), int(100.0 * close / maxf(1.0, samples.size()))])
 		finish()
@@ -477,11 +503,13 @@ func _maneuver() -> void:
 		var pose := run.find_revive_pose()
 		run.player.restore_for_revive(pose[0], float(pose[1]), 1.0, 0.0)
 		run.player.speed = run.player.cruise_speed
+		run.camera.snap()
 		r.override_steer = 0.0
 		r.override_brake = false
-		await wait(0.3)
+		await wait(float(flags.get("gap", "0.3")))
 		var peak_lat := 0.0
 		var peak_deg := 0.0
+		var visual_checked := false
 		var drift := 0.0
 		var t := 0.0
 		var hold := float(mv[1])
@@ -492,11 +520,25 @@ func _maneuver() -> void:
 			var dt := 1.0 / Engine.physics_ticks_per_second
 			t += dt
 			var p := run.player
+			# Collisions are off for this test (no walls), which also removes the floor:
+			# keep the car on the ground so renders show it.
+			p.global_position.y = 0.0
 			peak_lat = maxf(peak_lat, absf(p.lateral))
 			peak_deg = maxf(peak_deg, rad_to_deg(absf(atan2(p.lateral, maxf(p.speed, 0.01)))))
+			# Visual contract mid-slide (right turn, sliding left): the rendered body must
+			# exaggerate the slide (tail swing same side as the slip) and lean outward (left).
+			if not visual_checked and absf(p.lateral) > 4.0 and p.visual != null and t > 0.4:
+				visual_checked = true
+				var slip_sign := signf(p.lateral)  # negative = sliding left in a right turn
+				var tail := p.visual.tail_swing()
+				var roll := p.visual.body_roll()
+				log_line("  visual: slip=%.1f tail=%.3f roll=%.3f" % [p.lateral, tail, roll])
+				expect(signf(tail) == slip_sign and absf(tail) > 0.05, "tail swing exaggerates the slide (tail %.3f, slip %.1f)" % [tail, p.lateral])
+				# Every maneuver turns right (steer +1), so the roof must lean left (outward).
+				expect(roll > 0.02, "body leans out of the right turn (roll %.3f)" % roll)
 			if p.drifting:
 				drift += dt
-			if flags.has("trace") and int(t * 60) % 6 == 0 and t < hold + 0.3:
+			if flags.has("trace") and int(t * 60) % 6 == 0 and t < hold + 2.5:
 				log_line("   t=%.2f v=%.1f lat=%.2f yaw=%.2f steer=%.2f drift=%s" % [t, p.speed, p.lateral, p.yaw_rate, p.steer, p.drifting])
 		log_line("maneuver %-16s grippy=%s peak_sideways=%.1f m/s peak_slide=%d deg drift=%.2fs" % [mv[0], run.player.grippy, peak_lat, int(peak_deg), drift])
 		# Handling contract: Drifty slides on hard inputs, Grippy stays planted, flicks stay controllable.

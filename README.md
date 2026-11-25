@@ -58,6 +58,7 @@ They're kept in the codebase on purpose: they're how the game gets tested withou
 | `--demo` | Start a run and let the autopilot drive (for video capture) |
 | `--probe=SEC` | With `--demo`: log a status line every `--every=SEC` (default 5) and report how often police were within 60 m. Add `--trace` for position, capture progress, HP and each cop's AI state |
 | `--seed=N` / `--heat=N` / `--god` | Fixed seed, start at heat stage N, no damage/capture |
+| `--closeup` / `--empty` | Low review camera locked behind the direction of travel / hide the city blocks (open asphalt), for judging body roll, tail swing and smoke |
 | `--handling=MODE` / `--maneuver` | `drifty` or `grippy`; scripted flick, full-lock and brake-turn at speed, printing slide and drift numbers and failing if the handling contract breaks |
 | `--time=MODE` | `day`, `night` or `cycle`; overrides the Time of day setting |
 | `--touch` / `--capture-warning` | With `--shot`: inject a real touch drag (shows the steer ring) / show the capture warning |

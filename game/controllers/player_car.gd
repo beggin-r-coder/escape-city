@@ -27,6 +27,7 @@ var distance_travelled: float = 0.0
 var steer_used: Vector2 = Vector2.ZERO  # tutorial tracking: x = left used, y = right used
 var drift_time: float = 0.0
 var visual: CarVisual
+var smoke: TyreSmoke
 var yaw_rate: float = 0.0
 ## Accessibility option: much more grip, rarely slides.
 var grippy: bool = false
@@ -35,7 +36,9 @@ var _is_wrecked: bool = false
 var _contact_cooldowns: Dictionary = {}
 var _prev_pos: Vector3 = Vector3.ZERO
 var _last_speed: float = 0.0
-var _wall_normal: Vector3 = Vector3.ZERO  # set this step when pressed against static geometry
+var _wall_normal: Vector3 = Vector3.ZERO
+var _drift_peak: float = 0.0  # biggest slide of the current drift (drives the fishtail size)
+var _settle: float = 0.0  # seconds of soft grip after a regrip, letting the tail swing back  # set this step when pressed against static geometry
 
 
 func setup(handling: HandlingConfig, input_router: InputRouter) -> void:
@@ -61,6 +64,12 @@ func set_look(model_name: String) -> void:
 	visual.build(model_name)
 	visual.add_lights(true)
 	visual.teleport(global_transform)
+	if smoke != null:
+		smoke.queue_free()
+	smoke = TyreSmoke.new()
+	smoke.name = "TyreSmoke"
+	visual.add_child(smoke)
+	smoke.setup(visual.rear_wheel_points())
 
 
 func reset_at(pos: Vector3, new_heading: float, initial_speed: float = 0.0) -> void:
@@ -127,6 +136,9 @@ func _physics_process(delta: float) -> void:
 	var yaw := -steer * rate_yaw * authority
 	if drifting:
 		yaw *= config.drift_yaw_multiplier
+	# Rear-heavy: the sliding tail keeps swinging the car round (less on Grippy).
+	var bias := config.rear_bias * (0.4 if grippy else 1.0)
+	yaw += clampf(lateral * bias, -config.max_oversteer_yaw, config.max_oversteer_yaw)
 	yaw_rate = move_toward(yaw_rate, yaw, config.yaw_response * delta)
 
 	# --- Momentum: turn the nose, keep the world velocity, re-project onto the new axes.
@@ -161,9 +173,22 @@ func _physics_process(delta: float) -> void:
 	elif drifting and (slip < config.regrip_threshold or ground_speed < config.drift_min_speed * 0.6):
 		want_drift = false
 	if want_drift != drifting:
+		if drifting and not want_drift and not grippy:
+			# Regrip: the tail snaps back past centre - a fishtail the player must catch,
+			# sized by how big the drift was, with soft grip for a moment so it swings.
+			var thrown := -signf(lateral) * minf(_drift_peak * config.fishtail_strength, 2.8)
+			lateral = thrown
+			yaw_rate += -thrown * config.rear_bias * 3.0
+			_settle = 0.35
+		_drift_peak = 0.0
 		drifting = want_drift
 		drift_changed.emit(drifting)
+	if drifting:
+		_drift_peak = maxf(_drift_peak, absf(lateral))
+	_settle = maxf(0.0, _settle - delta)
 	var g := (config.drift_grip if drifting else config.grip) * grip_mult
+	if _settle > 0.0:
+		g *= 0.35
 	if braking and absf(steer) > 0.25 and ground_speed > config.drift_min_speed:
 		g *= config.brake_grip_factor  # handbrake turn
 	lateral = clampf(move_toward(lateral, 0.0, g * delta), -config.max_lateral_slip, config.max_lateral_slip)
@@ -198,10 +223,15 @@ func _physics_process(delta: float) -> void:
 	distance_travelled += moved.length()
 	_prev_pos = global_position
 
+	if smoke != null:
+		var slide := clampf((absf(lateral) - 1.5) / 6.0, 0.0, 1.0) if drifting else 0.0
+		var brake_puff := 0.35 if (braking and speed > 9.0) else 0.0
+		smoke.set_intensity(maxf(slide, brake_puff))
 	if visual != null:
 		visual.speed = speed
 		visual.steer = steer
 		visual.lateral = lateral
+		visual.yaw_rate = yaw_rate
 		visual.accel = (speed - _last_speed) / maxf(delta, 0.0001)
 		visual.capture(global_transform)
 	_last_speed = speed
@@ -305,3 +335,5 @@ func apply_origin_shift(offset: Vector3) -> void:
 	_prev_pos += offset
 	if visual != null:
 		visual.shift(offset)
+	if smoke != null:
+		smoke.reset_puffs()

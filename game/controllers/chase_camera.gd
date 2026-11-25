@@ -13,6 +13,9 @@ var base_fov: float = 52.0  # horizontal (KEEP_WIDTH): constant road width in po
 var wide_fov: float = 60.0
 var reduced_motion: bool = false
 var orbit: bool = false
+## Dev review mode: locked behind the direction of travel (no lag, no lean), so any rotation
+## seen on screen is the car's own slide / tail swing / roll.
+var rigid: bool = false
 
 var _cam_heading: float = 0.0
 var _look: Vector3 = Vector3.ZERO
@@ -77,6 +80,9 @@ func _update(delta: float, instant: bool) -> void:
 		var travel := LaneGraph.heading_of(planar_vel.normalized())
 		var slide := clampf(absf(target.lateral) / 6.0, 0.0, 1.0)
 		car_heading = lerp_angle(car_heading, travel, 0.6 * slide)
+	if rigid and planar_vel.length() > 1.0:
+		car_heading = LaneGraph.heading_of(planar_vel.normalized())
+		instant = true
 	_cam_heading = lerp_angle(_cam_heading, car_heading, 1.0 if instant else _damp(5.0, delta))
 	var fwd := LaneGraph.forward_of(_cam_heading)
 	var right := Vector3(-fwd.z, 0.0, fwd.x)
@@ -87,7 +93,8 @@ func _update(delta: float, instant: bool) -> void:
 	var desired := tpos - fwd * dist + Vector3.UP * h
 	global_position = desired if instant else global_position.lerp(desired, _damp(7.0, delta))
 	# Look ahead of the car, leaning slightly into a drift.
-	var look_target := tpos + fwd * (look_ahead + speed_t * 4.0) - right * target.lateral * 0.6
+	var lean := 0.0 if rigid else target.lateral * 0.6
+	var look_target := tpos + fwd * (look_ahead + speed_t * 4.0) - right * lean
 	_look = look_target if instant else _look.lerp(look_target, _damp(9.0, delta))
 	var target_fov := lerpf(base_fov, wide_fov, maxf(speed_t * 0.5, 0.6 if near_junction else 0.0))
 	fov = target_fov if instant else lerpf(fov, target_fov, _damp(2.0, delta))

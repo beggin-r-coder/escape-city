@@ -23,7 +23,14 @@ var _wheel_base: Dictionary = {}
 var _spin: float = 0.0
 var _steer_vis: float = 0.0
 var _roll: float = 0.0
+var _roll_vel: float = 0.0
 var _pitch: float = 0.0
+var _tail: float = 0.0
+var _tail_vel: float = 0.0
+var yaw_rate: float = 0.0  # rad/s, fed by the body
+## Model is rotated 180 deg: positive roll about its FORWARD tips the roof to the car's
+## left. Right turns give negative yaw/centrifugal, and the body must lean LEFT (outward).
+const ROLL_SIGN := -1.0
 var model_name: String = ""
 var _lights_root: Node3D
 var _prev: Transform3D = Transform3D.IDENTITY
@@ -101,6 +108,25 @@ func add_lights(real: bool) -> void:
 			_lights_root.add_child(spot)
 
 
+## Rear wheel contact points (this visual's space), for tyre smoke and marks.
+func rear_wheel_points() -> Array[Vector3]:
+	var bb := ArtKit.kenney_aabb("cars/" + model_name)
+	var sc := model_scale
+	var rear_z := -bb.position.z * sc - 0.9
+	var half_w := bb.size.x * 0.5 * sc
+	var pts: Array[Vector3] = [Vector3(-half_w * 0.75, 0.3, rear_z), Vector3(half_w * 0.75, 0.3, rear_z)]
+	return pts
+
+
+## Applied body roll (rad): positive tips the roof to the car's LEFT. For automated checks.
+func body_roll() -> float:
+	return _roll
+
+
+func tail_swing() -> float:
+	return _tail
+
+
 func model() -> Node3D:
 	return _model
 
@@ -137,10 +163,26 @@ func _process(delta: float) -> void:
 	for w in _wheels_back:
 		w.basis = Basis(Vector3.RIGHT, _spin) * (_wheel_base[w] as Basis)
 	if _body != null:
-		# Roll into the slide, pitch with acceleration; springy and capped.
-		var k := clampf(delta * 8.0, 0.0, 1.0)
-		_roll = lerpf(_roll, clampf(lateral * 0.018 + steer * speed * 0.0025, -0.09, 0.09), k)
-		_pitch = lerpf(_pitch, clampf(accel * 0.006, -0.06, 0.06), k)
+		var dt := minf(delta, 0.05)
+		# Body roll: lean out of the corner on an underdamped spring, so it settles with a wobble.
+		var centrifugal := speed * yaw_rate  # m/s^2 (signed)
+		var roll_target := clampf(centrifugal * 0.0065 + lateral * 0.012, -0.16, 0.16) * ROLL_SIGN
+		_roll_vel += ((roll_target - _roll) * 70.0 - _roll_vel * 7.0) * dt
+		_roll += _roll_vel * dt
+		_pitch = lerpf(_pitch, clampf(accel * 0.006, -0.06, 0.06), clampf(dt * 8.0, 0.0, 1.0))
 		# Model is rotated 180 deg, so its local X/Z are flipped relative to the car.
 		var tilt := Basis(Vector3.FORWARD, _roll) * Basis(Vector3.RIGHT, _pitch)
 		_body.transform = Transform3D(tilt * _body_base.basis, _body_base.origin)
+	if _model != null:
+		# Rear-heavy look: the body swings around the front axle with the slide, and the
+		# underdamped spring overshoots when the slide ends - a visible tail wiggle.
+		var dt2 := minf(delta, 0.05)
+		# Right-turn drift: lateral < 0 (sliding left); the tail swings further out = clockwise
+		# (negative) rotation about the front axle, exaggerating the drift angle.
+		var tail_target := clampf(lateral * 0.03, -0.22, 0.22)
+		_tail_vel += ((tail_target - _tail) * 85.0 - _tail_vel * 6.5) * dt2
+		_tail += _tail_vel * dt2
+		var pivot := Vector3(0, 0, -1.2 * model_scale)  # front axle, in this node's space (-Z forward)
+		var swing := Transform3D(Basis(Vector3.UP, _tail), Vector3.ZERO)
+		var about_front := Transform3D(Basis.IDENTITY, pivot) * swing * Transform3D(Basis.IDENTITY, -pivot)
+		_model.transform = about_front * Transform3D(Basis(Vector3.UP, PI).scaled(Vector3.ONE * model_scale), Vector3.ZERO)

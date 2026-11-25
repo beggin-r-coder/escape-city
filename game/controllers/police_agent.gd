@@ -22,8 +22,8 @@ var base_speed: float = 15.0
 var rubber_cap: float = 4.0
 var rubber_gain: float = 0.12
 var aggression: float = 0.5
-var accel: float = 9.0
-var turn_rate: float = 2.0
+var accel: float = 13.0
+var turn_rate: float = 2.5
 var ai_interval: float = 0.125
 
 var target_point: Vector3 = Vector3.ZERO
@@ -272,8 +272,8 @@ func _drive(delta: float) -> void:
 		var want := clampf(diff * 4.0, -max_rate, max_rate)
 		_yaw_rate = move_toward(_yaw_rate, want, 9.0 * delta)
 		heading = wrapf(heading + _yaw_rate * delta, -PI, PI)
-		if absf(diff) > 0.8:
-			desired_speed *= 0.55
+		if absf(diff) > 0.9:
+			desired_speed *= 0.72
 	var rate := accel if speed < desired_speed else 14.0
 	speed = move_toward(speed, desired_speed, rate * delta)
 	_move(delta, speed)

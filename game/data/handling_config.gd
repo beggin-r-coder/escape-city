@@ -22,7 +22,7 @@ extends Resource
 @export var grip: float = 22.0
 ## Once sideways speed passes slip_threshold the tyres break loose and grip falls to
 ## drift_grip until it drops below regrip_threshold (hysteresis = long, holdable slides).
-@export var drift_grip: float = 4.5
+@export var drift_grip: float = 6.5
 @export var slip_threshold: float = 3.0
 @export var regrip_threshold: float = 1.2
 ## Braking while turning works like a handbrake: grip multiplied by this.
@@ -32,6 +32,13 @@ extends Resource
 @export var max_lateral_slip: float = 9.0
 ## Forward speed scrubbed per second while sliding.
 @export var drift_drag: float = 2.5
+## Rear-heavy feel: sideways slip keeps rotating the car into the slide (oversteer),
+## in rad/s per m/s of slip, capped at max_oversteer_yaw.
+@export var rear_bias: float = 0.055
+@export var max_oversteer_yaw: float = 0.6
+## When the tyres regrip, the tail snaps back past centre: this fraction of the slide
+## is thrown the other way, producing a fishtail wiggle.
+@export var fishtail_strength: float = 0.35
 ## "Grippy" handling option multiplies grip by this (accessibility / easier mode).
 @export var grippy_multiplier: float = 1.8
 

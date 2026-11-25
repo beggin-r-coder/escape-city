@@ -19,6 +19,8 @@ var hazard_density: float = 0.3
 var safe_center: Vector3 = Vector3.ZERO
 var safe_radius: float = 0.0
 var active: Dictionary = {}  # Vector2i -> {"node", "props", "coins", "plan"}
+## Dev review: hide block geometry (open asphalt) for handling/body-motion renders.
+var debug_hide_blocks: bool = false
 ## Streaming cost (microseconds) for frame-hitch monitoring.
 var last_activate_usec: int = 0
 var max_activate_usec: int = 0
@@ -174,7 +176,7 @@ func _activate_inner(cell: Vector2i, initial: bool) -> void:
 	if node == null:
 		return
 	node.position = corner
-	node.visible = true
+	node.visible = not debug_hide_blocks
 	ChunkBuilder.build(node, plan, graph)
 	var props: Array = []
 	for h in plan["hazards"]:
