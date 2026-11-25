@@ -80,6 +80,15 @@ func build(input_router: InputRouter) -> void:
 	heat.alignment = BoxContainer.ALIGNMENT_CENTER
 	heat.add_theme_constant_override("separation", 8)
 	heat.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var heat_bg := Panel.new()
+	heat_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heat_bg.custom_minimum_size = Vector2(320, 44)
+	var hsb := StyleBoxFlat.new()
+	hsb.bg_color = Color(0.05, 0.07, 0.12, 0.55)
+	hsb.set_corner_radius_all(22)
+	heat_bg.add_theme_stylebox_override("panel", hsb)
+	_root.add_child(heat_bg)
+	place(heat_bg, Vector2(0.5, 0.0), Vector2(-160, top + 3))
 	_root.add_child(heat)
 	var heat_label := UiKit.label("HEAT", 22, Color("ff8a5c"))
 	heat.add_child(heat_label)
@@ -97,6 +106,15 @@ func build(input_router: InputRouter) -> void:
 
 	pause_button = UiKit.button("II", pause_pressed.emit, UiKit.TOUCH_MIN)
 	pause_button.mouse_filter = Control.MOUSE_FILTER_STOP
+	pause_button.add_theme_font_size_override("font_size", 40)
+	for st in ["normal", "hover", "pressed", "focus"]:
+		var psb := StyleBoxFlat.new()
+		psb.bg_color = Color(0.05, 0.07, 0.12, 0.55 if st != "pressed" else 0.8)
+		psb.set_corner_radius_all(46)
+		psb.corner_detail = 16
+		psb.border_color = Color(1, 1, 1, 0.35)
+		psb.set_border_width_all(3)
+		pause_button.add_theme_stylebox_override(st, psb)
 	_root.add_child(pause_button)
 	place(pause_button, Vector2(1.0, 0.0), Vector2(-right - UiKit.TOUCH_MIN.x, top))
 	router.add_exclusion(pause_button)
@@ -165,7 +183,8 @@ func _pad(text: String, size: Vector2, color: Color) -> Panel:
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = color
-	sb.set_corner_radius_all(int(size.x * 0.5))
+	sb.set_corner_radius_all(int(size.x * 0.5) - 2)
+	sb.corner_detail = 16
 	sb.border_color = Color(1, 1, 1, 0.35)
 	sb.set_border_width_all(3)
 	p.add_theme_stylebox_override("panel", sb)

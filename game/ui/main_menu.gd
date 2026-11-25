@@ -28,7 +28,9 @@ func open_screen() -> void:
 	row.add_child(UiKit.button("SETTINGS", settings_pressed.emit, Vector2(200, 96)))
 	col.add_child(row)
 	if DashCore.consent.privacy_options_required():
-		var privacy := UiKit.button("Privacy options", DashCore.consent.show_privacy_options, Vector2(300, 96))
+		var privacy := UiKit.button("Privacy options", DashCore.consent.show_privacy_options, Vector2(260, 96))
+		privacy.flat = true
 		privacy.add_theme_font_size_override("font_size", 22)
+		privacy.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 		col.add_child(privacy)
 	super.open_screen()

@@ -19,6 +19,11 @@ var enabled: bool = true:
 			clear_all()
 		enabled = value
 
+## Test harness / autopilot injection. When active it replaces player input.
+var override_active: bool = false
+var override_steer: float = 0.0
+var override_brake: bool = false
+
 var _zones: Dictionary = {}  # StringName -> Control
 var _exclusions: Array[Control] = []
 var _steer_index: int = -1
@@ -73,6 +78,8 @@ func _notification(what: int) -> void:
 func get_steer() -> float:
 	if not enabled:
 		return 0.0
+	if override_active:
+		return clampf(override_steer, -1.0, 1.0)
 	var key_axis := Input.get_axis(&"steer_left", &"steer_right")
 	var touch := _steer_touch
 	if layout == Layout.BUTTONS:
@@ -87,6 +94,8 @@ func get_steer() -> float:
 func is_brake_held() -> bool:
 	if not enabled:
 		return false
+	if override_active:
+		return override_brake
 	return not _brake_touches.is_empty() or Input.is_action_pressed(&"brake")
 
 

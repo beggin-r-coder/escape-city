@@ -17,9 +17,17 @@ var _settings_return: UiScreen
 var _toast_t: float = 0.0
 
 
+var flags: Dictionary = {}
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	DashCore.boot()
+	flags = DevFlags.parse(OS.get_cmdline_user_args())
+	var save_path := ""
+	if flags.has("fresh"):
+		save_path = DevFlags.FRESH_SAVE
+		DevFlags.delete_save(save_path)
+	DashCore.boot(save_path)
 	run_root = RunRoot.new()
 	run_root.name = "RunRoot"
 	run_root.process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -36,6 +44,11 @@ func _ready() -> void:
 	if DashCore.save_store.last_load_status == "recovered_backup" or DashCore.save_store.last_load_status == "reset_corrupt":
 		show_toast("Save data was damaged and has been recovered.", 5.0)
 	_go_menu()
+	if DevFlags.wants_harness(flags):
+		var harness := DevHarness.new()
+		harness.name = "DevHarness"
+		add_child(harness)
+		harness.start(self, flags)
 
 
 func _build_ui() -> void:

@@ -62,6 +62,16 @@ static func button(text: String, callback: Callable, min_size: Vector2 = Vector2
 	return b
 
 
+## Lower-emphasis button (dark, outlined) for secondary choices like "No thanks".
+static func secondary(b: Button) -> Button:
+	for st in ["normal", "hover", "pressed", "focus"]:
+		var sb := _box(Color(0.1, 0.12, 0.18, 0.85) if st != "pressed" else Color(0.18, 0.2, 0.26, 0.95), 14)
+		sb.border_color = Color(1, 1, 1, 0.3)
+		sb.set_border_width_all(2)
+		b.add_theme_stylebox_override(st, sb)
+	return b
+
+
 static func centered_column(parent: Control, separation: int = 18) -> VBoxContainer:
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -95,7 +105,7 @@ static func slider_row(title: String, value: float, on_change: Callable) -> HBox
 	s.max_value = 1.0
 	s.step = 0.05
 	s.value = value
-	s.custom_minimum_size = Vector2(360, 64)
+	s.custom_minimum_size = Vector2(360, 56)
 	s.value_changed.connect(on_change)
 	row.add_child(s)
 	return row

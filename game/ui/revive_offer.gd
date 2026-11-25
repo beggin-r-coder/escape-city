@@ -20,7 +20,7 @@ func open_with(reason: String) -> void:
 	col.add_child(UiKit.label(reason_title(reason), 72, Color("ff6b5a")))
 	col.add_child(UiKit.label(reason_hint(reason), 26, Color(0.9, 0.9, 0.95)))
 	col.add_child(UiKit.button("REVIVE  (watch ad)", _on_revive, Vector2(460, 104)))
-	col.add_child(UiKit.button("No thanks", declined.emit, Vector2(300, 96)))
+	col.add_child(UiKit.secondary(UiKit.button("No thanks", declined.emit, Vector2(300, 96))))
 	_timer_label = UiKit.label("", 24, Color(1, 1, 1, 0.6))
 	col.add_child(_timer_label)
 	_t = TIMEOUT

@@ -34,6 +34,11 @@ var catalog: CosmeticCatalog
 var env: Environment
 var sun: DirectionalLight3D
 
+## Dev harness hooks (see game/dev/dev_harness.gd).
+var forced_seed: int = -1
+var start_heat_band: int = 0
+var god_mode: bool = false
+
 var _crash_timer: float = -1.0
 var _crash_reason: String = ""
 var _last_capture_beep: float = 0.0
@@ -140,26 +145,28 @@ func _build_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("4f73b0")
-	sky_mat.sky_horizon_color = Color("e6c29a")
-	sky_mat.ground_horizon_color = Color("b59a80")
-	sky_mat.ground_bottom_color = Color("3a3a44")
+	sky_mat.sky_top_color = Color("3d6fc4")
+	sky_mat.sky_horizon_color = Color("bcd3ea")
+	sky_mat.ground_horizon_color = Color("bcd3ea")
+	sky_mat.ground_bottom_color = Color("5a6470")
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("8ea5c8")
-	env.ambient_light_energy = 0.65
+	env.ambient_light_color = Color("7f95b8")
+	env.ambient_light_energy = 0.55
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_white = 4.0
 	env.fog_enabled = true
-	env.fog_light_color = Color("d8bfa2")
-	env.fog_density = 0.007
+	env.fog_light_color = Color("a9bfd6")
+	env.fog_density = 0.0028
+	env.fog_sky_affect = 0.25
 	we.environment = env
 	add_child(we)
 	sun = DirectionalLight3D.new()
 	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-52, -38, 0)
 	sun.light_color = Color("ffe0b5")
-	sun.light_energy = 1.15
+	sun.light_energy = 1.25
 	sun.directional_shadow_max_distance = 90.0
 	add_child(sun)
 
@@ -212,7 +219,7 @@ func _reset_world_state(seed_value: int) -> void:
 func enter_preview() -> void:
 	if session.state != RunSession.State.MENU:
 		session.to_menu()
-	_reset_world_state(SeedService.new_run_seed())
+	_reset_world_state(forced_seed if forced_seed >= 0 else SeedService.new_run_seed())
 	player.controls_enabled = false
 	router.enabled = false
 	camera.orbit = true
@@ -228,8 +235,11 @@ func enter_preview() -> void:
 func start_run(tutorial_mode: bool) -> bool:
 	if not session.begin_run(tutorial_mode):
 		return false
-	var seed_value := SeedService.new_run_seed()
+	var seed_value := forced_seed if forced_seed >= 0 else SeedService.new_run_seed()
 	_reset_world_state(seed_value)
+	if start_heat_band > 0:
+		var b := clampi(start_heat_band, 0, difficulty.band_count() - 1)
+		director.heat_bonus = difficulty.band_start_times[b]
 	camera.orbit = false
 	camera.snap()
 	audio.muted = false
@@ -267,6 +277,7 @@ func complete_tutorial() -> void:
 		capture.enabled = true
 		capture.reset()
 		score.reset()
+		player.distance_travelled = 0.0
 		hud.show_banner("SURVIVE!", 1.4)
 
 
@@ -393,6 +404,9 @@ func _tick_ambient(delta: float) -> void:
 
 
 func _tick_running(delta: float) -> void:
+	if god_mode:
+		player.health = handling.max_health
+		capture.reset()
 	var band := director.band
 	player.cruise_speed = DifficultyProfile.pick_f(difficulty.player_cruise_speed, band)
 	traffic.desired_count = DifficultyProfile.pick_i(difficulty.traffic_count, band)

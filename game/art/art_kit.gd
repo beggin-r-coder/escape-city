@@ -4,9 +4,9 @@ extends RefCounted
 ## materials. Restrained warm/cool palette; hazards use high-contrast orange/yellow,
 ## decoration never uses hazard colors.
 
-const ASPHALT := Color("2a2c33")
+const ASPHALT := Color("26282e")
 const LANE_MARK := Color("d9d4c5")
-const SIDEWALK := Color("8d8a86")
+const SIDEWALK := Color("7d7a76")
 const GRASS := Color("4f7a46")
 const PAVING := Color("a39a8c")
 const HEDGE := Color("3e6b3a")
@@ -16,8 +16,8 @@ const CONE := Color("ff6a13")
 const CRATE := Color("f2c230")
 const COIN := Color("ffd23f")
 const BUILDINGS := [
-	Color("d8c3a5"), Color("c98f6b"), Color("b9b2a7"), Color("e3d6bf"),
-	Color("9fa8b3"), Color("c7a27a"), Color("a7745a"), Color("cfc8bc"),
+	Color("d9b38c"), Color("c46f4f"), Color("8fa3b8"), Color("e6d3b3"),
+	Color("6f8299"), Color("c9925a"), Color("a35a44"), Color("b8c2c9"),
 ]
 
 static var _materials: Dictionary = {}
@@ -180,11 +180,17 @@ static func car(shape: int, body_color: Color, accent: Color, police: bool = fal
 		box(root, Vector3(0.4, 0.18, 0.06), Vector3(sx, 0.75, length * 0.5), brake)
 	root.set_meta(&"brake_mat", brake)
 	if police:
-		var red := unique_mat(Color("ff2233"), 0.5)
-		var blue := unique_mat(Color("2a6bff"), 0.5)
-		var roof_y := 0.35 + body_h + cabin.y + 0.1
-		box(root, Vector3(0.6, 0.18, 0.4), Vector3(-0.35, roof_y, cabin_z), red)
-		box(root, Vector3(0.6, 0.18, 0.4), Vector3(0.35, roof_y, cabin_z), blue)
+		# Big unshaded light bar + white roof so police read instantly from the high camera.
+		var red := StandardMaterial3D.new()
+		red.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		red.albedo_color = Color("ff2233")
+		var blue := StandardMaterial3D.new()
+		blue.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		blue.albedo_color = Color("2a6bff")
+		var roof_y := 0.35 + body_h + cabin.y
+		box(root, Vector3(cabin.x - 0.1, 0.06, cabin.z - 0.2), Vector3(0, roof_y + 0.03, cabin_z), mat(Color("f4f6fa")))
+		box(root, Vector3(0.75, 0.28, 0.55), Vector3(-0.42, roof_y + 0.2, cabin_z), red)
+		box(root, Vector3(0.75, 0.28, 0.55), Vector3(0.42, roof_y + 0.2, cabin_z), blue)
 		box(root, Vector3(width + 0.02, 0.2, 1.2), Vector3(0, 0.55 + body_h * 0.5, 0.0), mat(accent))
 		root.set_meta(&"bar_red", red)
 		root.set_meta(&"bar_blue", blue)

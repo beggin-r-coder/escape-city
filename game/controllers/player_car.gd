@@ -149,6 +149,12 @@ func _physics_process(delta: float) -> void:
 	var pre_velocity := velocity
 	move_and_slide()
 	_handle_collisions(pre_velocity)
+	# Keep the speed state honest: if the car is pinned (boxed in by police, wedged on a
+	# wall) its measured forward motion is what counts, so capture rules see the truth.
+	var real := get_real_velocity()
+	var actual_forward := Vector3(real.x, 0.0, real.z).dot(forward())
+	if actual_forward < speed - 0.5:
+		speed = maxf(actual_forward, 0.0)
 
 	var moved := global_position - _prev_pos
 	moved.y = 0.0

@@ -34,16 +34,20 @@ func _ready() -> void:
 	add_child(_player)
 	_player.play()
 	_playback = _player.get_stream_playback() as AudioStreamGeneratorPlayback
-	_one_shots["crash"] = _make_noise_burst(0.45, 9.0, 0.9)
-	_one_shots["smash"] = _make_noise_burst(0.18, 18.0, 0.5)
-	_one_shots["coin"] = _make_tone([1320.0, 1760.0], 0.12, 0.35)
-	_one_shots["warning"] = _make_tone([880.0, 660.0], 0.18, 0.4)
-	_one_shots["escape"] = _make_tone([660.0, 880.0, 1100.0], 0.12, 0.35)
+	build_one_shots()
 	for i in 4:
 		var p := AudioStreamPlayer.new()
 		p.bus = AudioBuses.SFX
 		add_child(p)
 		_shot_players.append(p)
+
+
+func build_one_shots() -> void:
+	_one_shots["crash"] = _make_noise_burst(0.45, 9.0, 0.9)
+	_one_shots["smash"] = _make_noise_burst(0.18, 18.0, 0.5)
+	_one_shots["coin"] = _make_tone([1320.0, 1760.0], 0.12, 0.35)
+	_one_shots["warning"] = _make_tone([880.0, 660.0], 0.18, 0.4)
+	_one_shots["escape"] = _make_tone([660.0, 880.0, 1100.0], 0.12, 0.35)
 
 
 func play(name_id: String) -> void:
@@ -59,10 +63,17 @@ func play(name_id: String) -> void:
 func _process(delta: float) -> void:
 	if _playback == null:
 		return
-	_siren_t += delta
 	var frames := _playback.get_frames_available()
 	if frames <= 0:
+		_siren_t += delta
 		return
+	_playback.push_buffer(synth(frames, delta))
+
+
+## Renders `frames` samples of the continuous layers (engine, siren, skid). Pure enough to
+## call offline in tests: no playback or tree needed.
+func synth(frames: int, delta: float) -> PackedVector2Array:
+	_siren_t += delta
 	var buf := PackedVector2Array()
 	buf.resize(frames)
 	var eng_f := 38.0 + engine_speed * 5.5
@@ -85,7 +96,12 @@ func _process(delta: float) -> void:
 		if skid_amp > 0.0:
 			v += randf_range(-1.0, 1.0) * skid_amp
 		buf[i] = Vector2(v, v)
-	_playback.push_buffer(buf)
+	return buf
+
+
+## One-shot sample bank (crash, smash, coin, warning, escape), exposed for tests.
+func one_shot(name_id: String) -> AudioStreamWAV:
+	return _one_shots.get(name_id, null)
 
 
 static func _make_noise_burst(seconds: float, decay: float, amp: float) -> AudioStreamWAV:

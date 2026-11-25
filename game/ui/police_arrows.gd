@@ -25,8 +25,7 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var rect := get_rect()
-	var center := rect.size * 0.5
+	var center := get_viewport_rect().size * 0.5
 	var margin := 70.0
 	var half := center - Vector2(margin, margin)
 	for i in directions.size():

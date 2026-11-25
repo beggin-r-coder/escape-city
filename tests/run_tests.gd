@@ -30,6 +30,7 @@ func _initialize() -> void:
 		"test_billing_entitlement",
 		"test_score_contract",
 		"test_input_dead_zone",
+		"test_audio_offline",
 	]
 	var started := Time.get_ticks_msec()
 	for t in tests:
@@ -431,3 +432,50 @@ func test_input_dead_zone() -> void:
 	check(InputRouter.apply_dead_zone(0.05, 0.08) == 0.0, "inside dead zone")
 	check(is_equal_approx(InputRouter.apply_dead_zone(1.0, 0.08), 1.0), "full deflection")
 	check(InputRouter.apply_dead_zone(-0.5, 0.08) < 0.0, "sign preserved")
+
+
+## Render the procedural audio offline: every sample finite, no clipping, audible when it
+## should be, silent when muted. Prints peak/RMS per section (we can't listen in CI).
+func test_audio_offline() -> void:
+	var a := SynthAudio.new()
+	var sections := [
+		["idle", 0.0, 0.0, 0.0],
+		["cruise_14", 14.0, 0.0, 0.0],
+		["top_22", 22.0, 0.0, 0.0],
+		["siren_close", 18.0, 1.0, 0.0],
+		["drift_skid", 16.0, 0.4, 1.0],
+	]
+	for sec in sections:
+		a.engine_speed = float(sec[1])
+		a.siren_level = float(sec[2])
+		a.skid_level = float(sec[3])
+		var stats := _audio_stats(a.synth(int(SynthAudio.MIX_RATE), 1.0))
+		print("    audio %-12s peak=%.3f rms=%.3f" % [sec[0], stats[0], stats[1]])
+		check(stats[2], "%s samples finite" % sec[0])
+		check(stats[0] < 0.99, "%s does not clip" % sec[0])
+		check(stats[1] > 0.01, "%s audible" % sec[0])
+	a.muted = true
+	var muted := _audio_stats(a.synth(2048, 0.1))
+	check(muted[0] < 0.0001, "muted is silent")
+	a.build_one_shots()
+	for id in ["crash", "smash", "coin", "warning", "escape"]:
+		var wav := a.one_shot(id)
+		check(wav != null and wav.data.size() > 0, "one-shot %s exists" % id)
+		var peak := 0
+		for i in range(0, wav.data.size(), 2):
+			peak = maxi(peak, absi(wav.data.decode_s16(i)))
+		print("    audio %-12s len=%.2fs peak=%.3f" % [id, wav.data.size() / 2.0 / SynthAudio.MIX_RATE, peak / 32767.0])
+		check(peak > 1000 and peak < 32767, "one-shot %s level sane" % id)
+	a.free()
+
+
+func _audio_stats(buf: PackedVector2Array) -> Array:
+	var peak := 0.0
+	var sum := 0.0
+	var finite := true
+	for v in buf:
+		if is_nan(v.x) or is_inf(v.x):
+			finite = false
+		peak = maxf(peak, absf(v.x))
+		sum += v.x * v.x
+	return [peak, sqrt(sum / maxf(1.0, buf.size())), finite]

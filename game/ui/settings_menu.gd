@@ -9,8 +9,8 @@ signal settings_changed
 func open_screen() -> void:
 	clear()
 	UiKit.dim_background(self, 0.8)
-	var col := UiKit.centered_column(self, 14)
-	col.add_child(UiKit.label("SETTINGS", 56))
+	var col := UiKit.centered_column(self, 8)
+	col.add_child(UiKit.label("SETTINGS", 48))
 	var store := DashCore.save_store
 	col.add_child(UiKit.slider_row("Music", float(store.get_setting("music_volume", 0.7)), _on_music))
 	col.add_child(UiKit.slider_row("Effects", float(store.get_setting("sfx_volume", 0.9)), _on_sfx))
@@ -18,7 +18,7 @@ func open_screen() -> void:
 	col.add_child(_toggle("Quality", "quality", ["low", "high"], ["Low", "High"]))
 	col.add_child(_toggle("Reduced motion", "reduced_motion", [false, true], ["Off", "On"]))
 	col.add_child(_toggle("Haptics", "haptics", [true, false], ["On", "Off"]))
-	col.add_child(UiKit.button("BACK", back_pressed.emit))
+	col.add_child(UiKit.secondary(UiKit.button("BACK", back_pressed.emit, Vector2(300, 80))))
 	super.open_screen()
 
 
@@ -30,7 +30,7 @@ func _toggle(title: String, key: String, values: Array, labels: Array) -> HBoxCo
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	row.add_child(l)
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(360, 80)
+	b.custom_minimum_size = Vector2(360, 72)
 	b.focus_mode = Control.FOCUS_NONE
 	var store := DashCore.save_store
 	var refresh := func() -> void:

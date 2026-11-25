@@ -35,6 +35,9 @@ var _stuck_timer: float = 0.0
 var _recover_timer: float = 0.0
 var _recover_steer: float = 1.0
 var _flash_t: float = 0.0
+var _recoil: float = 0.0  # after a ram, drop back so the player gets a window to turn away
+const RAM_RECOIL_SECONDS := 2.5
+const RAM_RECOIL_SPEED := 0.85
 var _model: Node3D
 var _red: StandardMaterial3D
 var _blue: StandardMaterial3D
@@ -78,6 +81,7 @@ func activate(pos: Vector3, new_heading: float, tuning: Dictionary) -> void:
 	mode = Mode.PURSUE
 	_path.clear()
 	_goal = Vector2i(999999, 999999)
+	_recoil = 0.0
 	_stuck_timer = 0.0
 	_recover_timer = 0.0
 	_ai_timer = randf() * ai_interval  # stagger decisions across agents
@@ -128,6 +132,7 @@ func _physics_process(delta: float) -> void:
 		speed = move_toward(speed, 0.0, 14.0 * delta)
 		_move(delta, 0.0)
 		return
+	_recoil = maxf(0.0, _recoil - delta)
 	_ai_timer -= delta
 	if _ai_timer <= 0.0:
 		_ai_timer += ai_interval
@@ -208,6 +213,8 @@ func _check_los() -> bool:
 
 
 func max_speed_now() -> float:
+	if _recoil > 0.0:
+		return player.speed * RAM_RECOIL_SPEED
 	var dist := distance_to_player()
 	return base_speed + clampf((dist - 30.0) * rubber_gain, 0.0, rubber_cap)
 
@@ -255,6 +262,7 @@ func _move(_delta: float, spd: float) -> void:
 			player.apply_vehicle_hit(self, strength)
 			rammed_player.emit(strength)
 			speed *= 0.5
+			_recoil = RAM_RECOIL_SECONDS
 		elif other is StaticBody3D:
 			var n2 := col.get_normal()
 			if absf(forward().dot(n2)) > 0.7:
@@ -266,8 +274,8 @@ func _flash(delta: float) -> void:
 		return
 	_flash_t += delta * 6.0
 	var on := fmod(_flash_t, 2.0) < 1.0
-	_red.emission_energy_multiplier = 4.0 if on else 0.3
-	_blue.emission_energy_multiplier = 0.3 if on else 4.0
+	_red.albedo_color = Color("ff2233") if on else Color("4a1015")
+	_blue.albedo_color = Color("1b2a50") if on else Color("3a7bff")
 
 
 func apply_origin_shift(offset: Vector3) -> void:

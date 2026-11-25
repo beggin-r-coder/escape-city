@@ -8,8 +8,14 @@ dramatic escapes. Built for Android with **Godot 4.3 (GDScript, GL Compatibility
 following the DashPanda *Escape City Development Guide v1.0*.
 
 > Status: **Phase 1 prototype + release scaffolding.** It's playable on desktop with fake
-> ad/billing/consent adapters. It has not been run on a physical Android device yet; see
-> [What still needs a human](#what-still-needs-a-human).
+> ad/billing/consent adapters, and verified by an automated play-through and rendered
+> screenshots (see [Test harness](#test-harness)). It has not been run on a physical
+> Android device yet; see [What still needs a human](#what-still-needs-a-human).
+
+| Menu | Chase | Results |
+|---|---|---|
+| ![menu](docs/screenshots/menu.png) | ![chase](docs/screenshots/chase.png) | ![results](docs/screenshots/results.png) |
+| ![tutorial](docs/screenshots/tutorial.png) | ![heat](docs/screenshots/run_heat.png) | ![garage](docs/screenshots/garage.png) |
 
 ## Run it
 
@@ -27,6 +33,55 @@ godot --headless --path . -s res://tests/run_tests.gd
 ```
 
 The exit code is 0 when every check passes.
+
+## Test harness
+
+The game reads dev flags passed after `--` (`game/dev/dev_flags.gd`, `game/dev/dev_harness.gd`).
+They're kept in the codebase on purpose: they're how the game gets tested without a screen.
+
+| Flag | Effect |
+|---|---|
+| `--fresh` | Use a throwaway save (deleted at start and end) |
+| `--autotest` | Play the whole flow automatically: menu → garage → settings → tutorial → every heat stage → pause/resume → crash → rewarded revive → results → retry → 2× coins → menu → save reload. Prints `[autotest] STAGE stage=N …` lines and exits non-zero on any failed expectation |
+| `--until=N` | Stop the autotest once heat stage N is reached |
+| `--shot=PATH` | Capture `--screen` to a PNG and quit |
+| `--shots=DIR` | Run the autotest and save screenshots at each milestone |
+| `--screen=NAME` | `menu`, `garage`, `settings`, `tutorial`, `countdown`, `run`, `pause`, `revive` or `results` |
+| `--wait=SEC` | Game seconds to wait before the shot |
+| `--near-police` | Wait until a police car is 10–28 m away before the shot |
+| `--demo` | Start a run and let the autopilot drive (for video capture) |
+| `--probe=SEC` | With `--demo`: log a status line every `--every=SEC` (default 5) and report how often police were within 60 m. Add `--trace` for position, capture progress, HP and each cop's AI state |
+| `--seed=N` / `--heat=N` / `--god` | Fixed seed, start at heat stage N, no damage/capture |
+| `--ad=MODE` | Fake ads: `earn` (default in harness), `dismiss`, `no_fill`, `interactive` |
+
+The autopilot (`game/dev/autopilot.gd`) drives along the lane graph. It picks junction exits
+away from police, changes lanes around traffic and brakes into turns.
+
+Fast logic check (no rendering, about 20 s):
+
+```bash
+godot --headless --fixed-fps 60 --path . -- --fresh --autotest
+```
+
+Real rendering on a virtual screen (Xvfb + Mesa, Compatibility renderer):
+
+```bash
+xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --rendering-driver opengl3 --resolution 1280x720 -- --fresh --seed=42 --screen=run --god --wait=12 --shot=/tmp/run.png
+```
+
+Video with audio (Movie Maker):
+
+```bash
+xvfb-run -a -s "-screen 0 1280x720x24" godot --path . --rendering-driver opengl3 --resolution 1280x720 --write-movie /tmp/clip.avi --fixed-fps 30 --quit-after 660 -- --fresh --seed=11 --heat=3 --god --demo
+```
+
+Balance probe (how close is the pursuit, does the run end, and how):
+
+```bash
+godot --headless --fixed-fps 60 --path . -- --fresh --demo --probe=120 --seed=3 --heat=5 --ad=no_fill
+```
+
+The README screenshots in `docs/screenshots/` are regenerated this way before commits.
 
 ## Controls
 

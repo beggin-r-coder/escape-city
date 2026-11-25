@@ -6,11 +6,11 @@ extends Camera3D
 
 var target: PlayerCar
 var graph: LaneGraph
-var distance: float = 15.0
-var height: float = 17.0
-var look_ahead: float = 10.0
-var base_fov: float = 58.0
-var wide_fov: float = 70.0
+var distance: float = 12.0
+var height: float = 25.0
+var look_ahead: float = 7.0
+var base_fov: float = 55.0
+var wide_fov: float = 64.0
 var reduced_motion: bool = false
 var orbit: bool = false
 
@@ -50,7 +50,7 @@ func _update(delta: float, instant: bool) -> void:
 	var tpos := target.global_position
 	if orbit:
 		_orbit_angle += delta * 0.15
-		var offset := Vector3(sin(_orbit_angle), 0, cos(_orbit_angle)) * 34.0 + Vector3(0, 22.0, 0)
+		var offset := Vector3(sin(_orbit_angle), 0, cos(_orbit_angle)) * 42.0 + Vector3(0, 46.0, 0)
 		global_position = tpos + offset
 		look_at(tpos, Vector3.UP)
 		fov = base_fov
@@ -60,8 +60,8 @@ func _update(delta: float, instant: bool) -> void:
 	var fwd := LaneGraph.forward_of(_cam_heading)
 	var speed_t := clampf(target.speed / 22.0, 0.0, 1.0)
 	var near_junction := graph.nearest_intersection_distance(tpos) < graph.half_road() + 10.0
-	var dist := distance + speed_t * 3.0
-	var h := height + speed_t * 2.0 + (2.0 if near_junction else 0.0)
+	var dist := distance + speed_t * 2.0
+	var h := height + speed_t * 2.0 + (2.5 if near_junction else 0.0)
 	var desired := tpos - fwd * dist + Vector3.UP * h
 	var pk := 1.0 if instant else clampf(delta * 6.0, 0.0, 1.0)
 	global_position = global_position.lerp(desired, pk)
@@ -74,15 +74,22 @@ func _update(delta: float, instant: bool) -> void:
 	look_at(tpos + fwd * look_ahead, Vector3.UP)
 
 
-## Screen-space direction (x right, y down) toward an off-screen point; ZERO if visible.
+## Screen direction (x right, y down) from the player toward an off-screen point, measured
+## on the ground plane in the camera's yaw frame. ZERO if the point is visible.
 func offscreen_direction(world_pos: Vector3) -> Vector2:
-	if is_position_in_frustum(world_pos):
+	if is_position_in_frustum(world_pos + Vector3(0, 1.0, 0)):
 		return Vector2.ZERO
-	var local := global_transform.affine_inverse() * world_pos
-	var dir := Vector2(local.x, local.z)  # camera looks down -Z; +Z is behind
-	if dir.length_squared() < 0.001:
+	var fwd := -global_transform.basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 0.0001:
+		fwd = LaneGraph.forward_of(_cam_heading)
+	fwd = fwd.normalized()
+	var right := Vector3(-fwd.z, 0.0, fwd.x)
+	var d := world_pos - target.global_position
+	var v := Vector2(d.dot(right), -d.dot(fwd))
+	if v.length_squared() < 0.0001:
 		return Vector2(0, 1)
-	return dir.normalized()
+	return v.normalized()
 
 
 func apply_origin_shift(offset: Vector3) -> void:

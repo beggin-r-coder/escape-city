@@ -38,3 +38,9 @@ jobs:
           ./godot --headless --fixed-fps 60 --path . -s res://tests/smoke_run.gd 2>&1 | tee smoke.log
           grep -q "SMOKE DONE" smoke.log
           ! grep -E "SCRIPT ERROR|Parse Error" smoke.log
+
+      - name: Autotest (full game flow, every heat stage)
+        run: |
+          ./godot --headless --fixed-fps 60 --path . -- --fresh --autotest 2>&1 | tee autotest.log
+          grep -q "\[autotest\] done failures=0" autotest.log
+          ! grep -E "SCRIPT ERROR|Parse Error" autotest.log

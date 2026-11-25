@@ -34,8 +34,8 @@ func start() -> void:
 	panel.anchor_right = 0.5
 	panel.offset_left = -380
 	panel.offset_right = 380
-	panel.offset_top = 150
-	panel.offset_bottom = 230
+	panel.offset_top = 250
+	panel.offset_bottom = 330
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.05, 0.07, 0.12, 0.75)
 	sb.set_corner_radius_all(18)
